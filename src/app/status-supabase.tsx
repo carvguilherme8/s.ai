@@ -3,26 +3,28 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 const TABELAS = ["profiles", "turmas", "materiais", "topicos", "atividades", "entregas"] as const;
 
-/** Indicador de conexão: conta linhas de cada tabela (só números, nenhum dado pessoal). */
-export async function StatusSupabase() {
-  await connection(); // sempre no momento da requisição
+/** Conta linhas de cada tabela (só números, nenhum dado pessoal) e mede a latência. */
+async function verificarConexao() {
   const inicio = Date.now();
-
-  let contagens: { tabela: string; total: number | null }[] = [];
-  let erro: string | null = null;
   try {
     const supabase = createAdminClient();
-    contagens = await Promise.all(
+    const contagens = await Promise.all(
       TABELAS.map(async (tabela) => {
         const { count, error } = await supabase.from(tabela).select("*", { count: "exact", head: true });
         if (error) throw new Error(`${tabela}: ${error.message}`);
         return { tabela, total: count };
       }),
     );
+    return { contagens, erro: null, ms: Date.now() - inicio };
   } catch (e) {
-    erro = e instanceof Error ? e.message : String(e);
+    return { contagens: [], erro: e instanceof Error ? e.message : String(e), ms: Date.now() - inicio };
   }
-  const ms = Date.now() - inicio;
+}
+
+/** Indicador de conexão com o Supabase. */
+export async function StatusSupabase() {
+  await connection(); // sempre no momento da requisição
+  const { contagens, erro, ms } = await verificarConexao();
 
   return (
     <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
