@@ -50,7 +50,11 @@ export async function PainelProfessor() {
       </header>
 
       <section aria-labelledby="h-turmas">
-        <h2 id="h-turmas" className="mb-4 text-xl font-bold">Turmas</h2>
+        <div className="mb-4 flex items-baseline justify-between">
+          <h2 id="h-turmas" className="text-xl font-bold">Turmas</h2>
+          <Link href="/turmas" className="-my-3 py-3 text-sm font-medium text-link hover:underline">Gerenciar</Link>
+        </div>
+        {turmas?.length ? (
         <div className="grid gap-4 sm:grid-cols-2">
           {turmas?.map((t) => {
             const diag = diagPorTurma.get(t.id);
@@ -105,6 +109,13 @@ export async function PainelProfessor() {
             );
           })}
         </div>
+        ) : (
+          <p className="rounded-xl border border-dashed border-line-strong p-6 text-sm text-muted">
+            Nenhuma turma ainda.{" "}
+            <Link href="/turmas" className="font-medium text-link hover:underline">Crie sua primeira turma</Link>{" "}
+            para gerar o código de convite dos alunos.
+          </p>
+        )}
       </section>
 
       <section className="grid gap-10 sm:grid-cols-2">

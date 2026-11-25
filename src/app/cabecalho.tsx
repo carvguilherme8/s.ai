@@ -4,10 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { sair } from "./auth/actions";
-import { IconeGrade, IconeLista, IconeLivro, IconeMapa, IconeMenu, IconeSair, IconeX } from "./icones";
+import { IconeGrade, IconeLista, IconeLivro, IconeMapa, IconeMenu, IconeSair, IconeTurmas, IconeX } from "./icones";
 
 const ITENS = [
   { href: "/", rotulo: "Painel", exato: true, Icone: IconeGrade },
+  { href: "/turmas", rotulo: "Turmas", exato: false, Icone: IconeTurmas },
   { href: "/materiais", rotulo: "Materiais", exato: false, Icone: IconeLivro },
   { href: "/atividades", rotulo: "Atividades", exato: false, Icone: IconeLista },
   { href: "/diagnostico", rotulo: "Diagnóstico", exato: false, Icone: IconeMapa },

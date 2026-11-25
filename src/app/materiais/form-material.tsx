@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { NOMES_DISCIPLINAS } from "@/lib/disciplinas";
 import { criarMaterial, type EstadoForm } from "./actions";
@@ -8,6 +9,15 @@ const campo = "field";
 
 export function FormMaterial({ turmas }: { turmas: { id: string; nome: string }[] }) {
   const [estado, acao, pendente] = useActionState<EstadoForm, FormData>(criarMaterial, undefined);
+
+  if (!turmas.length) {
+    return (
+      <p className="rounded-xl border border-dashed border-line-strong p-4 text-sm text-muted">
+        Antes de enviar um material, crie pelo menos uma turma em{" "}
+        <Link href="/turmas" className="underline">Turmas</Link>.
+      </p>
+    );
+  }
 
   return (
     <form action={acao} className="card space-y-3 p-4">

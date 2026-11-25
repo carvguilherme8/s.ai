@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const ROTAS_PROFESSORA = ["/materiais", "/atividades", "/diagnostico"];
+const ROTAS_PROFESSORA = ["/turmas", "/materiais", "/atividades", "/diagnostico"];
 
 /**
  * Renova a sessão do Supabase e exige login nas áreas da professora e do aluno.
@@ -47,5 +47,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/materiais/:path*", "/atividades/:path*", "/diagnostico/:path*", "/aluno/:path*", "/entrar", "/cadastro"],
+  matcher: ["/", "/turmas/:path*", "/materiais/:path*", "/atividades/:path*", "/diagnostico/:path*", "/aluno/:path*", "/entrar", "/cadastro"],
 };
