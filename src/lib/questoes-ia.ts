@@ -1,7 +1,6 @@
 import "server-only";
 import { Type } from "@google/genai";
-import { gemini } from "@/lib/gemini";
-import { MODELO } from "@/lib/material-ia";
+import { gerarComFallback } from "@/lib/material-ia";
 
 export type TopicoAlvo = { id: string; nome: string; descricao: string | null };
 export type TrechoRef = { ordem: number; pagina: number | null; conteudo: string };
@@ -67,8 +66,7 @@ export async function gerarQuestoesDoTopico(
     nDissertativas > 0 && `${nDissertativas} questão(ões) dissertativa(s)`,
   ].filter(Boolean).join(" e ");
 
-  const res = await gemini.models.generateContent({
-    model: MODELO,
+  const res = await gerarComFallback({
     contents:
       `Você elabora questões no estilo ENEM para o ensino médio, em português do Brasil.\n` +
       `Tópico: "${topico.nome}"${topico.descricao ? ` — ${topico.descricao}` : ""}.\n` +

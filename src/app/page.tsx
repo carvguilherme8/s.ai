@@ -17,6 +17,9 @@ export default function Home() {
       <Link href="/atividades" className="mt-6 ml-2 inline-block rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium dark:border-zinc-700">
         Atividades e questões →
       </Link>
+      <Link href="/entrar" className="mt-6 ml-2 inline-block rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium dark:border-zinc-700">
+        Área do aluno →
+      </Link>
 
       <div className="mt-8">
         <Suspense fallback={<p className="text-sm text-zinc-500">Carregando painel…</p>}>

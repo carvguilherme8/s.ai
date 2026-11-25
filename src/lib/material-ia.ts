@@ -1,8 +1,26 @@
 import "server-only";
-import { Type } from "@google/genai";
+import { Type, type GenerateContentParameters } from "@google/genai";
 import { EMBEDDING_DIM, gemini } from "@/lib/gemini";
 
+/** Modelo preferido; os demais entram em ordem quando a cota (por modelo) do plano gratuito acaba. */
 export const MODELO = process.env.GEMINI_MODEL ?? "gemini-3.5-flash";
+const MODELOS = [...new Set([MODELO, "gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.7-flash"])];
+
+/** generateContent com fallback entre modelos em caso de cota esgotada (429) ou modelo indisponível. */
+export async function gerarComFallback(params: Omit<GenerateContentParameters, "model">) {
+  let ultimoErro: unknown;
+  for (const model of MODELOS) {
+    try {
+      return await gemini.models.generateContent({ ...params, model });
+    } catch (e) {
+      ultimoErro = e;
+      const status = (e as { status?: number }).status;
+      if (status !== 429 && status !== 503 && status !== 404) throw e;
+      console.warn(`Gemini ${model} indisponível (${status}); tentando o próximo modelo.`);
+    }
+  }
+  throw ultimoErro;
+}
 const MODELO_EMBEDDING = process.env.GEMINI_EMBEDDING_MODEL ?? "gemini-embedding-001";
 
 export function geminiConfigurado() {
@@ -11,8 +29,7 @@ export function geminiConfigurado() {
 
 /** Extrai o texto de um PDF (com texto, sem OCR) usando o próprio Gemini. */
 export async function extrairTextoDoPdf(pdf: Buffer): Promise<string> {
-  const res = await gemini.models.generateContent({
-    model: MODELO,
+  const res = await gerarComFallback({
     contents: [
       {
         role: "user",
@@ -35,8 +52,7 @@ export type TopicoSugerido = { nome: string; descricao: string };
 
 /** Pede à IA os Tópicos (unidades de conhecimento) do Material. */
 export async function extrairTopicos(titulo: string, texto: string): Promise<TopicoSugerido[]> {
-  const res = await gemini.models.generateContent({
-    model: MODELO,
+  const res = await gerarComFallback({
     contents:
       `Material de apoio de ensino médio (foco ENEM): "${titulo}".\n\n` +
       `Extraia de 3 a 8 Tópicos: unidades de conhecimento pequenas e específicas o bastante para ` +
