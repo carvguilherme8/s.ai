@@ -13,13 +13,28 @@ import {
 } from "@/lib/material-ia";
 
 const MAX_PDF = 15 * 1024 * 1024;
+const MAX_TITULO = 120;
+const MAX_TOPICO = 100;
+const MAX_DESCRICAO = 240;
 
 export type EstadoForm = { erro?: string } | undefined;
+export type EstadoAcao = { erro?: string; ok?: string } | undefined;
+
+const limparTexto = (v: FormDataEntryValue | null) => String(v ?? "").replace(/\s+/g, " ").trim();
+
+function revalidarTudo(materialId?: string) {
+  revalidatePath("/materiais");
+  if (materialId) revalidatePath(`/materiais/${materialId}`);
+  revalidatePath("/");
+  revalidatePath("/atividades");
+  revalidatePath("/diagnostico");
+  revalidatePath("/turmas");
+}
 
 export async function criarMaterial(_: EstadoForm, formData: FormData): Promise<EstadoForm> {
   const { supabase, professor } = await getProfessorAtual();
 
-  const titulo = String(formData.get("titulo") ?? "").trim();
+  const titulo = limparTexto(formData.get("titulo"));
   const turmaId = String(formData.get("turma_id") ?? "");
   const textoColado = String(formData.get("texto") ?? "").trim();
   const disciplinaEscolhida = disciplinaValida(formData.get("disciplina")); // vazio = a IA sugere
@@ -27,6 +42,7 @@ export async function criarMaterial(_: EstadoForm, formData: FormData): Promise<
   const pdf = arquivo instanceof File && arquivo.size > 0 ? arquivo : null;
 
   if (!titulo) return { erro: "Dê um título ao material." };
+  if (titulo.length > MAX_TITULO) return { erro: `O título pode ter no máximo ${MAX_TITULO} caracteres.` };
   if (!pdf && textoColado.length < 50) return { erro: "Cole um texto (mín. 50 caracteres) ou envie um PDF." };
   if (pdf && pdf.type !== "application/pdf") return { erro: "O arquivo precisa ser um PDF." };
   if (pdf && pdf.size > MAX_PDF) return { erro: "PDF acima de 15 MB." };
@@ -103,40 +119,195 @@ export async function criarMaterial(_: EstadoForm, formData: FormData): Promise<
     return { erro: "Não foi possível processar o material. Tente novamente." };
   }
 
-  revalidatePath("/materiais");
+  revalidarTudo(id);
   redirect("/materiais");
 }
 
-export async function confirmarTopico(formData: FormData) {
+/** Edita título, turma e disciplina de um Material. */
+export async function editarMaterial(_: EstadoAcao, formData: FormData): Promise<EstadoAcao> {
   const { supabase, professor } = await getProfessorAtual();
-  const nome = String(formData.get("nome") ?? "").replace(/\s+/g, " ").trim();
-  const update: { confirmado: boolean; nome?: string } = { confirmado: formData.get("confirmado") !== "false" };
-  if (nome) update.nome = nome;
-  await supabase.from("topicos").update(update)
-    .eq("id", String(formData.get("id"))).eq("professor_id", professor.id);
-  revalidatePath("/materiais");
+  const materialId = String(formData.get("material_id") ?? "");
+  const titulo = limparTexto(formData.get("titulo"));
+  const turmaId = String(formData.get("turma_id") ?? "");
+  const disciplina = disciplinaValida(formData.get("disciplina")); // vazio = sem disciplina
+
+  if (!materialId) return { erro: "Material inválido." };
+  if (!titulo) return { erro: "Informe o título do material." };
+  if (titulo.length > MAX_TITULO) return { erro: `O título pode ter no máximo ${MAX_TITULO} caracteres.` };
+
+  const [{ data: material }, { data: turma }] = await Promise.all([
+    supabase.from("materiais").select("id").eq("id", materialId).eq("professor_id", professor.id).maybeSingle(),
+    supabase.from("turmas").select("id").eq("id", turmaId).eq("professor_id", professor.id).maybeSingle(),
+  ]);
+  if (!material) return { erro: "Material não encontrado." };
+  if (!turma) return { erro: "Turma inválida." };
+
+  const { error } = await supabase
+    .from("materiais")
+    .update({ titulo, turma_id: turmaId, disciplina })
+    .eq("id", materialId)
+    .eq("professor_id", professor.id);
+  if (error) {
+    console.error("editarMaterial:", error);
+    return { erro: "Não foi possível salvar as alterações." };
+  }
+
+  revalidarTudo(materialId);
+  return { ok: "Material atualizado." };
 }
 
-export async function confirmarTodos(formData: FormData) {
+/** Exclui um Material, seu PDF no Storage e os tópicos dele que ainda não têm questões vinculadas. */
+export async function excluirMaterial(_: EstadoAcao, formData: FormData): Promise<EstadoAcao> {
   const { supabase, professor } = await getProfessorAtual();
-  await supabase.from("topicos").update({ confirmado: true })
-    .eq("material_id", String(formData.get("material_id"))).eq("professor_id", professor.id);
-  revalidatePath("/materiais");
+  const materialId = String(formData.get("material_id") ?? "");
+  if (!materialId) return { erro: "Material inválido." };
+
+  const { data: material } = await supabase
+    .from("materiais")
+    .select("id, titulo, storage_path")
+    .eq("id", materialId)
+    .eq("professor_id", professor.id)
+    .maybeSingle();
+  if (!material) return { erro: "Material não encontrado." };
+
+  // Remove tópicos deste material que não têm questões (os usados em questões ficam preservados com material_id = null).
+  const { data: topicos } = await supabase
+    .from("topicos")
+    .select("id, questoes(id)")
+    .eq("material_id", materialId)
+    .eq("professor_id", professor.id);
+  const topicosSemQuestoes = (topicos ?? []).filter((t) => t.questoes.length === 0).map((t) => t.id);
+  if (topicosSemQuestoes.length) {
+    await supabase.from("topicos").delete().in("id", topicosSemQuestoes).eq("professor_id", professor.id);
+  }
+
+  const { error } = await supabase
+    .from("materiais")
+    .delete()
+    .eq("id", materialId)
+    .eq("professor_id", professor.id);
+  if (error) {
+    console.error("excluirMaterial:", error);
+    return { erro: "Não foi possível excluir o material." };
+  }
+
+  if (material.storage_path) {
+    const { error: erroStorage } = await supabase.storage.from("materiais").remove([material.storage_path]);
+    if (erroStorage) console.error("excluirMaterial storage:", erroStorage);
+  }
+
+  revalidarTudo();
+  return { ok: `Material "${material.titulo}" excluído.` };
 }
 
-export async function removerTopico(formData: FormData) {
+/** Cria um novo Tópico manualmente (já confirmado) ligado a um Material. */
+export async function criarTopico(_: EstadoAcao, formData: FormData): Promise<EstadoAcao> {
   const { supabase, professor } = await getProfessorAtual();
-  await supabase.from("topicos").delete()
-    .eq("id", String(formData.get("id"))).eq("professor_id", professor.id);
-  revalidatePath("/materiais");
+  const materialId = String(formData.get("material_id") ?? "");
+  const nome = limparTexto(formData.get("nome"));
+  const descricao = limparTexto(formData.get("descricao")) || null;
+
+  if (!materialId) return { erro: "Material inválido." };
+  if (!nome) return { erro: "Informe o nome do tópico." };
+  if (nome.length > MAX_TOPICO) return { erro: `O nome do tópico pode ter no máximo ${MAX_TOPICO} caracteres.` };
+  if (descricao && descricao.length > MAX_DESCRICAO) {
+    return { erro: `A descrição pode ter no máximo ${MAX_DESCRICAO} caracteres.` };
+  }
+
+  const [{ data: material }, { data: existentes }] = await Promise.all([
+    supabase.from("materiais").select("id").eq("id", materialId).eq("professor_id", professor.id).maybeSingle(),
+    supabase.from("topicos").select("id, nome").eq("material_id", materialId).eq("professor_id", professor.id),
+  ]);
+  if (!material) return { erro: "Material não encontrado." };
+  if (existentes?.some((t) => t.nome.toLocaleLowerCase("pt-BR") === nome.toLocaleLowerCase("pt-BR"))) {
+    return { erro: "Este material já tem um tópico com esse nome." };
+  }
+
+  const { error } = await supabase.from("topicos").insert({
+    professor_id: professor.id,
+    material_id: materialId,
+    nome,
+    descricao,
+    confirmado: true,
+  });
+  if (error) {
+    console.error("criarTopico:", error);
+    return { erro: "Não foi possível adicionar o tópico." };
+  }
+
+  revalidarTudo(materialId);
+  return { ok: `Tópico "${nome}" adicionado.` };
 }
 
-/** Define (ou limpa) a disciplina de um Material. Os Tópicos dele herdam. */
-export async function definirDisciplina(formData: FormData) {
+export async function confirmarTopico(_: EstadoAcao, formData: FormData): Promise<EstadoAcao> {
   const { supabase, professor } = await getProfessorAtual();
-  const disciplina = disciplinaValida(formData.get("disciplina")); // vazio/inválido = sem disciplina
-  await supabase.from("materiais").update({ disciplina })
-    .eq("id", String(formData.get("material_id"))).eq("professor_id", professor.id);
-  revalidatePath("/materiais");
-  revalidatePath("/diagnostico");
+  const id = String(formData.get("id") ?? "");
+  const nome = limparTexto(formData.get("nome"));
+  const confirmado = formData.get("confirmado") !== "false";
+
+  if (!id) return { erro: "Tópico inválido." };
+  if (!nome) return { erro: "O nome do tópico não pode ficar vazio." };
+  if (nome.length > MAX_TOPICO) return { erro: `O nome do tópico pode ter no máximo ${MAX_TOPICO} caracteres.` };
+
+  const { error } = await supabase
+    .from("topicos")
+    .update({ confirmado, nome })
+    .eq("id", id)
+    .eq("professor_id", professor.id);
+  if (error) {
+    console.error("confirmarTopico:", error);
+    return { erro: "Não foi possível salvar o tópico." };
+  }
+
+  revalidarTudo();
+  return { ok: "Tópico salvo." };
+}
+
+export async function confirmarTodos(_: EstadoAcao, formData: FormData): Promise<EstadoAcao> {
+  const { supabase, professor } = await getProfessorAtual();
+  const materialId = String(formData.get("material_id") ?? "");
+  if (!materialId) return { erro: "Material inválido." };
+
+  const { error } = await supabase
+    .from("topicos")
+    .update({ confirmado: true })
+    .eq("material_id", materialId)
+    .eq("professor_id", professor.id);
+  if (error) {
+    console.error("confirmarTodos:", error);
+    return { erro: "Não foi possível confirmar os tópicos." };
+  }
+
+  revalidarTudo(materialId);
+  return { ok: "Todos os tópicos foram confirmados." };
+}
+
+export async function removerTopico(_: EstadoAcao, formData: FormData): Promise<EstadoAcao> {
+  const { supabase, professor } = await getProfessorAtual();
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { erro: "Tópico inválido." };
+
+  const { count } = await supabase
+    .from("questoes")
+    .select("*", { count: "exact", head: true })
+    .eq("topico_id", id);
+  if ((count ?? 0) > 0) {
+    return { erro: "Este tópico já é usado em questões de atividades e não pode ser removido." };
+  }
+
+  const { error } = await supabase
+    .from("topicos")
+    .delete()
+    .eq("id", id)
+    .eq("professor_id", professor.id);
+  if (error) {
+    if (error.code === "23503") {
+      return { erro: "Este tópico já é usado em questões de atividades e não pode ser removido." };
+    }
+    console.error("removerTopico:", error);
+    return { erro: "Não foi possível remover o tópico." };
+  }
+
+  revalidarTudo();
+  return { ok: "Tópico removido." };
 }

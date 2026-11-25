@@ -34,12 +34,16 @@ export async function gerarAtividade(_: EstadoForm, formData: FormData): Promise
   if (!material) return { erro: "Material inválido." };
   if (!turma) return { erro: "Turma inválida." };
 
-  const [{ data: topicos }, { data: trechos }] = await Promise.all([
+  const selecionados = new Set(formData.getAll("topico_ids").map(String).filter(Boolean));
+  if (!selecionados.size) return { erro: "Selecione ao menos um tópico para gerar questões." };
+
+  const [{ data: todosTopicos }, { data: trechos }] = await Promise.all([
     supabase.from("topicos").select("id, nome, descricao")
       .eq("material_id", materialId).eq("professor_id", professor.id).eq("confirmado", true).order("created_at"),
     supabase.from("material_trechos").select("id, ordem, pagina, conteudo").eq("material_id", materialId).order("ordem"),
   ]);
-  if (!topicos?.length) return { erro: "Confirme ao menos um tópico deste material antes de gerar questões." };
+  const topicos = (todosTopicos ?? []).filter((t) => selecionados.has(t.id));
+  if (!topicos.length) return { erro: "Selecione ao menos um tópico confirmado deste material antes de gerar questões." };
   if (!trechos?.length) return { erro: "Este material não tem trechos indexados. Envie-o novamente." };
 
   // Uma chamada por tópico, em paralelo. Dissertativas ficam nos primeiros tópicos.

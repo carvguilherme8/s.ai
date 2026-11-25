@@ -29,7 +29,7 @@ async function Conteudo() {
 
   const [{ data: turmas }, { data: materiais }, { data: atividades }] = await Promise.all([
     supabase.from("turmas").select("id, nome").eq("professor_id", professor.id).order("nome"),
-    supabase.from("materiais").select("id, titulo, turma_id, topicos(confirmado)")
+    supabase.from("materiais").select("id, titulo, turma_id, topicos(id, nome, confirmado, created_at)")
       .eq("professor_id", professor.id).order("created_at", { ascending: false }),
     supabase.from("atividades")
       .select("id, titulo, status, prazo, turma:turmas(nome), questoes(id)")
@@ -41,7 +41,13 @@ async function Conteudo() {
       <FormGerar
         turmas={turmas ?? []}
         materiais={(materiais ?? []).map((m) => ({
-          id: m.id, titulo: m.titulo, turma_id: m.turma_id, confirmados: m.topicos.filter((t) => t.confirmado).length,
+          id: m.id,
+          titulo: m.titulo,
+          turma_id: m.turma_id,
+          topicos: [...m.topicos]
+            .filter((t) => t.confirmado)
+            .sort((a, b) => a.created_at.localeCompare(b.created_at))
+            .map((t) => ({ id: t.id, nome: t.nome })),
         }))}
       />
       <ul className="space-y-2">
