@@ -4,12 +4,12 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 import { getProfessorAtual } from "@/lib/usuario-atual";
 import { IconeCheck, IconeVoltar } from "../../icones";
-import { excluirAtividade, publicarAtividade, removerQuestao, salvarQuestao } from "../actions";
+import { excluirAtividade, publicarAtividade } from "../actions";
+import { FormQuestao } from "./form-questao";
 
 export const metadata = { title: "Atividade — s.ai" };
 
 const campo = "field";
-const botao = "btn btn-secondary btn-sm";
 const LETRAS = "ABCDEFGH";
 
 export default function AtividadePage({ params }: PageProps<"/atividades/[id]">) {
@@ -54,7 +54,7 @@ async function Conteudo({ params }: { params: PageProps<"/atividades/[id]">["par
             <span className={`badge ${rascunho ? "badge-neutral" : "badge-ok"}`}>
               {rascunho ? "rascunho" : "publicada"}
             </span>
-            {atividade.turma?.nome} · material: {atividade.material?.titulo ?? "—"} · {questoes.length} questões
+            {atividade.turma?.nome} · {atividade.material?.titulo ? `material: ${atividade.material.titulo}` : "por tema (sem material)"} · {questoes.length} questões
             {!rascunho && atividade.prazo && ` · prazo ${new Date(atividade.prazo).toLocaleDateString("pt-BR")}`}
           </p>
         </div>
@@ -98,47 +98,14 @@ async function Conteudo({ params }: { params: PageProps<"/atividades/[id]">["par
               </p>
 
               {rascunho ? (
-                <form action={salvarQuestao} className="space-y-3">
-                  <input type="hidden" name="atividade_id" value={atividade.id} />
-                  <input type="hidden" name="questao_id" value={q.id} />
-                  <textarea name="enunciado" defaultValue={q.enunciado} rows={3} className={campo} aria-label="Enunciado" />
-                  {q.tipo === "multipla_escolha" ? (
-                    <ul className="space-y-2">
-                      {alts.map((a, j) => (
-                        <li key={a.id} className="grid grid-cols-[auto_1fr] items-start gap-2 text-sm">
-                          <label className="flex items-center gap-1 pt-1.5" title="Alternativa correta">
-                            <input type="radio" name="correta" value={a.id} defaultChecked={a.correta} />
-                            <span className="font-medium">{LETRAS[j]}</span>
-                          </label>
-                          <div className="space-y-1">
-                            <input name={`texto_${a.id}`} defaultValue={a.texto} className={campo} aria-label={`Alternativa ${LETRAS[j]}`} />
-                            <input
-                              name={`equivoco_${a.id}`}
-                              defaultValue={a.equivoco ?? ""}
-                              placeholder="Equívoco que este distrator representa (só nas erradas)"
-                              className={`${campo} text-muted`}
-                              aria-label={`Equívoco da alternativa ${LETRAS[j]}`}
-                            />
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <label className="block text-sm text-muted">
-                      Rubrica — um critério por linha, no formato <code>critério | pontos</code>
-                      <textarea
-                        name="rubrica"
-                        rows={Math.max(3, rubrica.length + 1)}
-                        defaultValue={rubrica.map((r) => `${r.criterio} | ${r.pontos}`).join("\n")}
-                        className={`${campo} mt-1`}
-                      />
-                    </label>
-                  )}
-                  <div className="flex gap-2">
-                    <button className={botao}>Salvar questão</button>
-                    <button formAction={removerQuestao} className="btn btn-danger btn-sm">Remover</button>
-                  </div>
-                </form>
+                <FormQuestao
+                  atividadeId={atividade.id}
+                  questaoId={q.id}
+                  tipo={q.tipo}
+                  enunciado={q.enunciado}
+                  alternativas={alts}
+                  rubrica={rubrica}
+                />
               ) : (
                 <div className="space-y-2 text-sm">
                   <p className="whitespace-pre-wrap">{q.enunciado}</p>

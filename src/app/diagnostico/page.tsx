@@ -70,18 +70,44 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
   const lacunas = lacunasDaTurma(d).filter((l) => noFiltro(l.disciplina));
   // No mapa, os tópicos com menor domínio vêm primeiro: a lacuna aparece sem precisar rolar (principalmente no celular).
   const topicosMapa = [...topicosVisiveis].sort((a, b) => (d.turmaCelulas[a.id]?.dominio ?? 2) - (d.turmaCelulas[b.id]?.dominio ?? 2));
+  const equivocosVisiveis = d.equivocos.filter((e) => idsVisiveis.has(e.topicoId));
+
+  // Evolução: mantém só linhas e colunas de atividades que tenham dados nas disciplinas visíveis.
+  const linhasEvoFiltradas = d.evolucao.linhas.filter((l) => idsVisiveis.has(l.topicoId));
+  const indicesAtividadesEvo = d.evolucao.atividades
+    .map((_, idx) => idx)
+    .filter((idx) => linhasEvoFiltradas.some((l) => l.valores[idx] !== null));
+  const atividadesEvoVisiveis = indicesAtividadesEvo.map((idx) => d.evolucao.atividades[idx]);
+  const linhasEvoVisiveis = linhasEvoFiltradas.map((l) => ({
+    ...l,
+    valores: indicesAtividadesEvo.map((idx) => l.valores[idx]),
+  }));
+
+  // Comparação entre turmas também respeita o filtro de disciplina.
+  const topicosComparacao = [
+    ...new Map(
+      comDados
+        .flatMap((t) => t.topicos)
+        .filter((x) => noFiltro(x.disciplina))
+        .map((x) => [x.nome, x] as const),
+    ).values(),
+  ];
 
   const { data: resumoRow } = await supabase
     .from("diagnostico_resumos").select("conteudo, gerado_em").eq("turma_id", d.turma.id).maybeSingle();
   const resumo = resumoRow?.conteudo as unknown as ResumoDiagnostico | undefined;
   const desatualizado = !!(resumoRow && d.ultimaEntrega && d.ultimaEntrega > resumoRow.gerado_em);
+  const nomesVisiveis = new Set(topicosVisiveis.map((t) => t.nome));
+  const focosResumo = resumo
+    ? (filtroAtivo ? resumo.focos.filter((f) => nomesVisiveis.has(f.topico)) : resumo.focos)
+    : [];
 
   const alunosEmLacuna = (tid: string) => d.alunos.filter((a) => a.celulas[tid]?.lacuna).length;
 
   // Texto pronto para colar no WhatsApp (negrito com *asteriscos*).
   const entregaram = d.alunos.filter((a) => a.entregou).length;
   const relatorio = [
-    `*Diagnóstico ${d.turma.nome}* — ${new Date().toLocaleDateString("pt-BR")}`,
+    `*Diagnóstico ${d.turma.nome}${filtroAtivo ? ` (${filtroAtivo})` : ""}* — ${new Date().toLocaleDateString("pt-BR")}`,
     `${entregaram} de ${d.totalAlunos} alunos entregaram.`,
     "",
     ...(lacunas.length
@@ -89,12 +115,12 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
           "*Onde a turma está travando:*",
           ...lacunas.flatMap((l) => [
             `• ${l.nome}: ${pct(l.dominio ?? 0)} (${alunosEmLacuna(l.id)} de ${l.alunosComDados} alunos abaixo da meta)`,
-            ...d.equivocos.filter((e) => e.topicoId === l.id).slice(0, 2).map((e) => `   - ${e.equivoco}`),
+            ...equivocosVisiveis.filter((e) => e.topicoId === l.id).slice(0, 2).map((e) => `   - ${e.equivoco}`),
             ...(l.paginas.length ? [`   Revisar: p. ${l.paginas.join(", ")} do material`] : []),
           ]),
         ]
       : [`Nenhum tópico abaixo de ${pct(LIMIAR_LACUNA)}.`]),
-    ...(resumo ? ["", "*Resumo:*", resumo.resumo] : []),
+    ...(resumo && !filtroAtivo ? ["", "*Resumo:*", resumo.resumo] : []),
     "",
     "Gerado pelo s.ai",
   ].join("\n");
@@ -180,10 +206,15 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
         <h2 id="h-resumo" className="mb-2 text-xl font-bold">Resumo da IA</h2>
         {resumo ? (
           <div className="space-y-3 text-sm">
+            {filtroAtivo && (
+              <p className="text-xs text-muted">
+                Panorama geral da turma (todas as disciplinas); focos filtrados para {filtroAtivo}.
+              </p>
+            )}
             <p>{resumo.resumo}</p>
-            {resumo.focos.length > 0 && (
+            {focosResumo.length > 0 && (
               <ul className="space-y-2">
-                {resumo.focos.map((f) => (
+                {focosResumo.map((f) => (
                   <li key={f.topico}>
                     <strong>Foque em {f.topico}:</strong> {f.porque} <em className="not-italic text-muted">Revise: {f.revisar}</em>
                   </li>
@@ -293,7 +324,7 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
       {/* Evolução por atividade */}
       <section aria-labelledby="h-evo">
         <h2 id="h-evo" className="mb-1 text-xl font-bold">Evolução por atividade</h2>
-        {d.evolucao.atividades.length < 2 || d.evolucao.linhas.filter((l) => idsVisiveis.has(l.topicoId)).length === 0 ? (
+        {atividadesEvoVisiveis.length < 2 || linhasEvoVisiveis.length === 0 ? (
           <p className="rounded-xl bg-sunken p-4 text-sm text-muted">
             Aplique outra atividade, por exemplo um reforço, para acompanhar o domínio da turma ao longo do tempo.
           </p>
@@ -307,7 +338,7 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
                 <thead>
                   <tr>
                     <th scope="col" className="sticky left-0 bg-background px-2 py-2 text-left font-medium sm:px-3">Tópico</th>
-                    {d.evolucao.atividades.map((a) => (
+                    {atividadesEvoVisiveis.map((a) => (
                       <th key={a.id} scope="col" className="min-w-28 px-2 py-2 text-center text-xs font-medium">
                         <span className="block">{a.titulo.replace(" (demo)", "")}</span>
                         <span className="mt-0.5 block font-normal text-muted">
@@ -320,7 +351,7 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
                   </tr>
                 </thead>
                 <tbody>
-                  {d.evolucao.linhas.filter((l) => idsVisiveis.has(l.topicoId)).map((l) => {
+                  {linhasEvoVisiveis.map((l) => {
                     const validos = l.valores.filter((v): v is number => v !== null);
                     const delta = validos.length >= 2 ? validos[validos.length - 1] - validos[0] : null;
                     return (
@@ -355,7 +386,7 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
       </section>
 
       {/* Comparação entre turmas */}
-      {comDados.length > 1 && (
+      {comDados.length > 1 && topicosComparacao.length > 0 && (
         <section aria-labelledby="h-comp">
           <h2 id="h-comp" className="mb-3 text-xl font-bold">Comparação entre turmas</h2>
           <div className="card overflow-x-auto">
@@ -369,7 +400,7 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
                 </tr>
               </thead>
               <tbody>
-                {[...new Map(comDados.flatMap((t) => t.topicos.map((x) => [x.nome, x] as const))).values()].map((top) => (
+                {topicosComparacao.map((top) => (
                   <tr key={top.nome}>
                     <th scope="row" className="px-3 py-1.5 text-left font-normal">{top.nome}</th>
                     {comDados.map((t) => {
@@ -392,11 +423,11 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
       )}
 
       {/* Equívocos */}
-      {d.equivocos.length > 0 && (
+      {equivocosVisiveis.length > 0 && (
         <section aria-labelledby="h-eq">
           <h2 id="h-eq" className="mb-3 text-xl font-bold">Equívocos mais frequentes</h2>
           <ol className="space-y-1.5 text-sm">
-            {d.equivocos.slice(0, 6).map((e, i) => (
+            {equivocosVisiveis.slice(0, 6).map((e, i) => (
               <li key={`${e.topicoId}-${e.equivoco}`} className="flex items-baseline gap-3">
                 <span className="w-5 text-right text-muted tabular-nums">{i + 1}.</span>
                 <span className="flex-1">{e.equivoco} <span className="text-muted">— {e.topico}</span></span>

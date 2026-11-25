@@ -128,7 +128,9 @@ export async function PainelProfessor() {
             <ul className="divide-y divide-line rounded-xl border border-line bg-surface text-sm">
               {materiais.map((m) => (
                 <li key={m.id} className="flex items-baseline justify-between gap-3 px-4 py-2.5">
-                  <span className="min-w-0 truncate">{m.titulo}</span>
+                  <Link href={`/materiais/${m.id}`} className="min-w-0 truncate hover:text-link hover:underline">
+                    {m.titulo}
+                  </Link>
                   <span className="shrink-0 text-xs text-muted">{m.tipo === "pdf" ? "PDF" : "texto"} · {m.turma?.nome}</span>
                 </li>
               ))}

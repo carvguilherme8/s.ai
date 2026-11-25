@@ -8,10 +8,12 @@ import { diagnosticosDoProfessor } from "@/lib/diagnostico";
 import { gerarResumoIA } from "@/lib/diagnostico-ia";
 import { gerarQuestoesDoTopico } from "@/lib/questoes-ia";
 import { corrigirDissertativa, type Rubrica } from "@/lib/correcao-ia";
+import { formatarTrechosParaPrompt, recuperarTrechosRelevantes } from "@/lib/rag";
 import { salvarAtividadeGerada } from "@/lib/salvar-atividade";
 import type { Json } from "@/lib/supabase/database.types";
 
 export type EstadoResumo = { erro?: string } | undefined;
+export type EstadoNota = { erro?: string; ok?: string } | undefined;
 
 /** Gera (ou atualiza) o resumo IA da Turma e o guarda em cache em diagnostico_resumos. */
 export async function gerarResumo(_: EstadoResumo, formData: FormData): Promise<EstadoResumo> {
@@ -62,17 +64,31 @@ export async function gerarReforco(_: EstadoResumo, formData: FormData): Promise
     .from("topicos").select("id, nome, descricao, material_id")
     .eq("id", topicoId).eq("professor_id", professor.id).maybeSingle();
   if (!topico) return { erro: "Tópico inválido." };
-  if (!topico.material_id) return { erro: "Este tópico não está ligado a um material. Gere o reforço pela tela Atividades." };
 
-  const { data: trechos } = await supabase
-    .from("material_trechos").select("id, ordem, pagina, conteudo").eq("material_id", topico.material_id).order("ordem");
-  if (!trechos?.length) return { erro: "O material deste tópico não tem trechos indexados." };
+  const trechos = topico.material_id
+    ? (
+        await supabase
+          .from("material_trechos")
+          .select("id, ordem, pagina, conteudo")
+          .eq("material_id", topico.material_id)
+          .order("ordem")
+      ).data ?? []
+    : [];
+  if (topico.material_id && !trechos.length) return { erro: "O material deste tópico não tem trechos indexados." };
 
   const foco = diag.equivocos.filter((e) => e.topicoId === topicoId).slice(0, 3).map((e) => e.equivoco);
+  const relevantes = topico.material_id
+    ? await recuperarTrechosRelevantes(
+        supabase,
+        topico.material_id,
+        `${topico.nome}${topico.descricao ? `: ${topico.descricao}` : ""}${foco.length ? ` Equívocos da turma: ${foco.join("; ")}` : ""}`,
+        { limite: 6, fallback: trechos },
+      )
+    : [];
 
   let geradas;
   try {
-    geradas = await gerarQuestoesDoTopico(topico, trechos, QUESTOES_REFORCO, 0, foco);
+    geradas = await gerarQuestoesDoTopico(topico, relevantes, QUESTOES_REFORCO, 0, foco);
   } catch (e) {
     console.error("gerarReforco:", e);
     return { erro: "A IA não respondeu agora (cota ou rede). Tente de novo em instantes." };
@@ -82,7 +98,7 @@ export async function gerarReforco(_: EstadoResumo, formData: FormData): Promise
   let atividadeId: string;
   try {
     atividadeId = await salvarAtividadeGerada(supabase, {
-      professorId: professor.id, turmaId, materialId: topico.material_id, titulo: `Reforço: ${topico.nome}`, geradas, trechos,
+      professorId: professor.id, turmaId, materialId: topico.material_id, titulo: `Reforço: ${topico.nome}`, geradas, trechos, ehReforco: true,
     });
   } catch (e) {
     console.error("gerarReforco salvar:", e);
@@ -96,7 +112,7 @@ async function respostaDaProfessora(respostaId: string, professorId: string) {
   const { supabase } = await getProfessorAtual();
   const { data } = await supabase
     .from("respostas")
-    .select("id, texto, entrega:entregas(aluno_id, atividade:atividades(professor_id)), questao:questoes(enunciado, rubrica, trecho:material_trechos(conteudo))")
+    .select("id, texto, entrega:entregas(aluno_id, atividade:atividades(professor_id, material_id)), questao:questoes(enunciado, rubrica, topico:topicos(nome), trecho:material_trechos(conteudo))")
     .eq("id", respostaId)
     .maybeSingle();
   if (!data || data.entrega?.atividade?.professor_id !== professorId) return null;
@@ -104,21 +120,28 @@ async function respostaDaProfessora(respostaId: string, professorId: string) {
 }
 
 /** Professora ajusta a nota da IA (0 a 10) ou volta para a nota da IA (campo vazio). */
-export async function ajustarNota(formData: FormData) {
+export async function ajustarNota(_: EstadoNota, formData: FormData): Promise<EstadoNota> {
   const { professor } = await getProfessorAtual();
   const alvo = await respostaDaProfessora(String(formData.get("resposta_id") ?? ""), professor.id);
-  if (!alvo) return;
+  if (!alvo) return { erro: "Resposta não encontrada." };
 
   const bruto = String(formData.get("nota") ?? "").trim().replace(",", ".");
   let nota: number | null = null;
   if (bruto !== "") {
     const n = Number(bruto);
-    if (!Number.isFinite(n) || n < 0 || n > 10) return;
+    if (!Number.isFinite(n) || n < 0 || n > 10) {
+      return { erro: "Informe uma nota válida entre 0 e 10." };
+    }
     nota = Math.round((n / 10) * 1000) / 1000;
   }
-  await alvo.supabase.from("respostas").update({ nota_ajustada: nota }).eq("id", alvo.resposta.id);
+  const { error } = await alvo.supabase.from("respostas").update({ nota_ajustada: nota }).eq("id", alvo.resposta.id);
+  if (error) {
+    console.error("ajustarNota:", error);
+    return { erro: "Não foi possível salvar a nota. Tente novamente." };
+  }
   revalidatePath(`/diagnostico/aluno/${alvo.alunoId}`);
   revalidatePath("/diagnostico");
+  return { ok: nota === null ? "Nota restaurada para a da IA." : "Nota ajustada." };
 }
 
 /** Refaz a correção por IA de uma dissertativa que ficou pendente (cota esgotada ou falha de rede). */
@@ -131,7 +154,18 @@ export async function corrigirPendente(_: EstadoResumo, formData: FormData): Pro
   const q = alvo.resposta.questao;
   if (!q?.rubrica || !alvo.resposta.texto) return { erro: "Esta resposta não tem rubrica ou texto para corrigir." };
   try {
-    const c = await corrigirDissertativa(q.enunciado, q.rubrica as Rubrica, alvo.resposta.texto, q.trecho?.conteudo ?? "");
+    let referencia = q.trecho?.conteudo ?? "";
+    const materialId = alvo.resposta.entrega?.atividade?.material_id ?? null;
+    if (!referencia && materialId) {
+      const encontrados = await recuperarTrechosRelevantes(
+        alvo.supabase,
+        materialId,
+        `${q.topico?.nome ?? ""} ${q.enunciado}`,
+        { limite: 2 },
+      );
+      referencia = formatarTrechosParaPrompt(encontrados);
+    }
+    const c = await corrigirDissertativa(q.enunciado, q.rubrica as Rubrica, alvo.resposta.texto, referencia);
     await alvo.supabase.from("respostas").update({ nota_ia: c.nota, correcao: c as unknown as Json }).eq("id", alvo.resposta.id);
   } catch (e) {
     console.error("corrigirPendente:", e);

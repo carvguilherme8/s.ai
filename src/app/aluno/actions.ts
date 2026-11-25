@@ -12,6 +12,8 @@ import {
   type ItemParaFeedback,
   type Rubrica,
 } from "@/lib/correcao-ia";
+import { formatarTrechosParaPrompt, recuperarTrechosRelevantes } from "@/lib/rag";
+import type { TrechoRef } from "@/lib/questoes-ia";
 import type { Json } from "@/lib/supabase/database.types";
 
 export type EstadoForm = { erro?: string } | undefined;
@@ -26,7 +28,7 @@ export async function enviarEntrega(_: EstadoForm, formData: FormData): Promise<
 
   // Visibilidade e prazo via RLS (a atividade precisa estar publicada na turma do aluno).
   const { data: atividade } = await sessao.supabase
-    .from("atividades").select("id, prazo").eq("id", atividadeId).maybeSingle();
+    .from("atividades").select("id, prazo, material_id").eq("id", atividadeId).maybeSingle();
   if (!atividade) return { erro: "Atividade não encontrada." };
   if (atividade.prazo && new Date(atividade.prazo) < new Date()) return { erro: "O prazo desta atividade já terminou." };
 
@@ -39,7 +41,7 @@ export async function enviarEntrega(_: EstadoForm, formData: FormData): Promise<
   const { data: questoes } = await admin
     .from("questoes")
     .select(
-      `id, tipo, ordem, enunciado, rubrica, topico:topicos(nome), trecho:material_trechos(pagina, conteudo),
+      `id, tipo, ordem, enunciado, rubrica, topico:topicos(nome), trecho:material_trechos(ordem, pagina, conteudo),
        alternativas(id, texto, correta, equivoco)`,
     )
     .eq("atividade_id", atividadeId)
@@ -74,9 +76,19 @@ export async function enviarEntrega(_: EstadoForm, formData: FormData): Promise<
   await Promise.all(
     questoes.filter((q) => q.tipo === "dissertativa").map(async (q) => {
       try {
+        let referencia = q.trecho?.conteudo ?? "";
+        if (!referencia && atividade.material_id) {
+          const encontrados = await recuperarTrechosRelevantes(
+            admin,
+            atividade.material_id,
+            `${q.topico?.nome ?? ""} ${q.enunciado}`,
+            { limite: 2 },
+          );
+          referencia = formatarTrechosParaPrompt(encontrados);
+        }
         correcoes.set(
           q.id,
-          await corrigirDissertativa(q.enunciado, q.rubrica as Rubrica, respostas.get(q.id)!.texto!, q.trecho?.conteudo ?? ""),
+          await corrigirDissertativa(q.enunciado, q.rubrica as Rubrica, respostas.get(q.id)!.texto!, referencia),
         );
       } catch (e) {
         console.error("corrigirDissertativa:", e);
@@ -147,10 +159,28 @@ export async function enviarEntrega(_: EstadoForm, formData: FormData): Promise<
   const explicacoes = new Map<string, string>();
   if (paraFeedback.length) {
     try {
-      const material = (
-        await admin.from("atividades").select("material:materiais(conteudo_texto)").eq("id", atividadeId).single()
-      ).data?.material?.conteudo_texto ?? "";
-      const fb = await gerarFeedback(paraFeedback, material);
+      let contextoMaterial = "";
+      if (atividade.material_id) {
+        const idsErradas = new Set(paraFeedback.map((it) => it.questao_id));
+        const trechosLigados: TrechoRef[] = questoes
+          .filter((q) => idsErradas.has(q.id) && q.trecho)
+          .map((q) => ({ ordem: q.trecho!.ordem, pagina: q.trecho!.pagina, conteudo: q.trecho!.conteudo }));
+
+        const consultaFeedback = paraFeedback
+          .map((it) => `${it.topico}: ${it.equivoco ?? it.enunciado.slice(0, 200)}`)
+          .join("\n");
+        const trechosRag = await recuperarTrechosRelevantes(admin, atividade.material_id, consultaFeedback, {
+          limite: 5,
+        });
+        contextoMaterial = formatarTrechosParaPrompt([...trechosLigados, ...trechosRag]);
+
+        if (!contextoMaterial) {
+          contextoMaterial =
+            (await admin.from("materiais").select("conteudo_texto").eq("id", atividade.material_id).maybeSingle()).data
+              ?.conteudo_texto ?? "";
+        }
+      }
+      const fb = await gerarFeedback(paraFeedback, contextoMaterial);
       resumo = fb.resumo ?? null;
       fb.itens?.forEach((i) => explicacoes.set(i.questao_id, i.explicacao));
     } catch (e) {

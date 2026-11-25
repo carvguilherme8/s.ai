@@ -78,6 +78,7 @@ async function main() {
     professor_id: prof.id, turma_id: turma.id, material_id: topico.material_id,
     titulo: TITULO, status: "publicada", publicada_em: dias(3),
   }).select().single(), "atividade");
+  await supabase.from("atividades").update({ eh_reforco: true }).eq("id", atividade.id);
 
   const prng = mulberry32(77);
   const questoes = [];

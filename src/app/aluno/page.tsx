@@ -66,16 +66,17 @@ async function Conteudo() {
   }
   const dominio = [...porTopico.entries()]
     .map(([id, t]) => {
-      const dom = t.notas.reduce((a, b) => a + b, 0) / t.notas.length;
+      const suficiente = t.notas.length >= MIN_QUESTOES;
+      const dom = suficiente ? t.notas.reduce((a, b) => a + b, 0) / t.notas.length : null;
       // a página do material onde ele mais errou: é o melhor ponto de partida para revisar
       const pagina = [...t.paginasErradas.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
       return {
         id, nome: t.nome, disciplina: t.disciplina, materialId: t.materialId, pagina,
         dominio: dom, respondidas: t.notas.length, acertos: t.notas.filter((n) => n >= 1).length,
-        lacuna: t.notas.length >= MIN_QUESTOES && dom < LIMIAR_LACUNA,
+        lacuna: dom !== null && dom < LIMIAR_LACUNA,
       };
     })
-    .sort((a, b) => a.dominio - b.dominio);
+    .sort((a, b) => (a.dominio ?? 2) - (b.dominio ?? 2) || a.nome.localeCompare(b.nome, "pt-BR"));
   type TopicoDominio = (typeof dominio)[number];
 
   const linkMaterial = (t: TopicoDominio) =>
@@ -147,14 +148,19 @@ async function Conteudo() {
                   <div className="min-w-0">
                     <p className="font-medium"><span className="grifo">{t.nome}</span></p>
                     <p className="mt-0.5 text-xs text-muted">
-                      {t.disciplina ?? SEM_DISCIPLINA} · {t.acertos} de {t.respondidas} certas · <span className="font-medium text-danger">{pct(t.dominio)}</span>
+                      {t.disciplina ?? SEM_DISCIPLINA} · {t.acertos} de {t.respondidas} certas · <span className="font-medium text-danger">{pct(t.dominio ?? 0)}</span>
                     </p>
                   </div>
-                  {href && (
-                    <Link href={href} className="btn btn-secondary btn-sm">
-                      Abrir no material{t.pagina ? `, p. ${t.pagina}` : ""}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Link href={`/aluno/reforco/${t.id}`} className="btn btn-primary btn-sm">
+                      Praticar reforço
                     </Link>
-                  )}
+                    {href && (
+                      <Link href={href} className="btn btn-secondary btn-sm">
+                        Abrir no material{t.pagina ? `, p. ${t.pagina}` : ""}
+                      </Link>
+                    )}
+                  </div>
                 </li>
               );
             })}
@@ -170,7 +176,8 @@ async function Conteudo() {
           </p>
           <div className="space-y-8">
             {grupos.map(([disciplina, lista]) => {
-              const media = lista.reduce((a, t) => a + t.dominio, 0) / lista.length;
+              const comDados = lista.filter((t) => t.dominio !== null);
+              const media = comDados.length ? comDados.reduce((a, t) => a + (t.dominio as number), 0) / comDados.length : null;
               const area = areaDaDisciplina(disciplina === SEM_DISCIPLINA ? null : disciplina);
               return (
                 <div key={disciplina}>
@@ -179,7 +186,9 @@ async function Conteudo() {
                       {disciplina}
                       {area && area !== disciplina && <span className="ml-2 font-sans text-xs font-normal text-muted">{area}</span>}
                     </span>
-                    <span className="text-xs text-muted">média <span className="font-semibold tabular-nums text-ink">{pct(media)}</span></span>
+                    {media !== null && (
+                      <span className="text-xs text-muted">média <span className="font-semibold tabular-nums text-ink">{pct(media)}</span></span>
+                    )}
                   </h3>
                   <ul className="space-y-2">
                     {lista.map((t) => {
@@ -189,8 +198,17 @@ async function Conteudo() {
                           <div className="min-w-0">
                             <p className="font-medium">{t.lacuna ? <span className="grifo">{t.nome}</span> : t.nome}</p>
                             <p className="mt-0.5 text-xs text-muted">
-                              {t.acertos} de {t.respondidas} {t.respondidas === 1 ? "certa" : "certas"}
-                              {t.lacuna && " · vale revisar"}
+                              {t.dominio === null
+                                ? `${t.acertos} de ${t.respondidas} ${t.respondidas === 1 ? "certa" : "certas"} · dados insuficientes (mín. ${MIN_QUESTOES} questões)`
+                                : `${t.acertos} de ${t.respondidas} ${t.respondidas === 1 ? "certa" : "certas"}`}
+                              {t.lacuna && (
+                                <>
+                                  {" · "}
+                                  <Link href={`/aluno/reforco/${t.id}`} className="font-medium text-link hover:underline">
+                                    praticar reforço
+                                  </Link>
+                                </>
+                              )}
                               {href && (
                                 <>
                                   {" · "}
@@ -200,8 +218,14 @@ async function Conteudo() {
                             </p>
                           </div>
                           <div className="shrink-0 text-right">
-                            <p className={`font-display text-xl font-bold tabular-nums ${t.lacuna ? "text-danger" : ""}`}>{pct(t.dominio)}</p>
-                            <Bolinhas valor={t.dominio} className={`mt-1 ${t.lacuna ? "text-danger" : "text-ok"}`} />
+                            {t.dominio === null ? (
+                              <span className="text-muted">—</span>
+                            ) : (
+                              <>
+                                <p className={`font-display text-xl font-bold tabular-nums ${t.lacuna ? "text-danger" : ""}`}>{pct(t.dominio)}</p>
+                                <Bolinhas valor={t.dominio} className={`mt-1 ${t.lacuna ? "text-danger" : "text-ok"}`} />
+                              </>
+                            )}
                           </div>
                         </li>
                       );

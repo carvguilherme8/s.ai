@@ -52,6 +52,7 @@ export type Database = {
       atividades: {
         Row: {
           created_at: string
+          eh_reforco: boolean
           id: string
           material_id: string | null
           prazo: string | null
@@ -63,6 +64,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          eh_reforco?: boolean
           id?: string
           material_id?: string | null
           prazo?: string | null
@@ -74,6 +76,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          eh_reforco?: boolean
           id?: string
           material_id?: string | null
           prazo?: string | null
@@ -485,6 +488,16 @@ export type Database = {
       atividade_visivel_ao_aluno: {
         Args: { p_atividade: string }
         Returns: boolean
+      }
+      buscar_trechos_similares: {
+        Args: { p_embedding: string; p_limite?: number; p_material: string }
+        Returns: {
+          conteudo: string
+          id: string
+          ordem: number
+          pagina: number | null
+          similaridade: number
+        }[]
       }
       ja_entreguei: { Args: { p_atividade: string }; Returns: boolean }
       meu_papel: { Args: never; Returns: Database["public"]["Enums"]["papel"] }

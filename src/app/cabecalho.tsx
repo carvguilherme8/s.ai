@@ -55,7 +55,7 @@ export function Cabecalho() {
         {aluno && (
           <nav aria-label="Aluno" className="flex items-center gap-1">
             {[
-              { href: "/aluno", rotulo: "Atividades", on: caminho === "/aluno" || caminho.startsWith("/aluno/atividades") },
+              { href: "/aluno", rotulo: "Atividades", on: caminho === "/aluno" || caminho.startsWith("/aluno/atividades") || caminho.startsWith("/aluno/reforco") },
               { href: "/aluno/materiais", rotulo: "Materiais", on: caminho.startsWith("/aluno/materiais") },
             ].map((item) => (
               <Link

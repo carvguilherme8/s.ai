@@ -12,10 +12,11 @@ export async function salvarAtividadeGerada(
   p: {
     professorId: string;
     turmaId: string;
-    materialId: string;
+    materialId: string | null;
     titulo: string;
     geradas: QuestaoGerada[];
     trechos: { id: string; ordem: number }[];
+    ehReforco?: boolean;
   },
 ): Promise<string> {
   const trechoPorOrdem = new Map(p.trechos.map((t) => [t.ordem, t.id]));
@@ -25,6 +26,10 @@ export async function salvarAtividadeGerada(
       id: atividadeId, professor_id: p.professorId, turma_id: p.turmaId, material_id: p.materialId, titulo: p.titulo,
     });
     if (error) throw error;
+    if (p.ehReforco) {
+      const { error: erroReforco } = await db.from("atividades").update({ eh_reforco: true }).eq("id", atividadeId);
+      if (erroReforco) console.warn("eh_reforco:", erroReforco.message);
+    }
 
     for (const [i, q] of p.geradas.entries()) {
       const questaoId = crypto.randomUUID();
