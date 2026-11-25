@@ -13,8 +13,8 @@ export type Celula = {
   lacuna: boolean;
 };
 
-/** Atividade de reforço: criada a partir de uma lacuna (título começa com "Reforço"). */
-export const ehReforco = (titulo: string) => titulo.startsWith("Reforço");
+/** Atividade de reforço: usa a coluna `eh_reforco` e mantém compatibilidade com títulos legados "Reforço...". */
+export const ehReforco = (titulo: string, flag?: boolean | null) => Boolean(flag) || titulo.startsWith("Reforço");
 
 export type Evolucao = {
   atividades: { id: string; titulo: string; data: string; reforco: boolean }[];
@@ -43,12 +43,23 @@ export async function diagnosticosDoProfessor(professorId: string): Promise<Diag
   const { data: turmas } = await db.from("turmas").select("id, nome").eq("professor_id", professorId).order("nome");
   if (!turmas?.length) return [];
 
-  const [{ data: atividades }, { data: alunos }] = await Promise.all([
-    db.from("atividades").select("id, turma_id, titulo, publicada_em, created_at").eq("professor_id", professorId).eq("status", "publicada"),
+  const [atividadesRes, { data: alunos }] = await Promise.all([
+    db.from("atividades").select("id, turma_id, titulo, publicada_em, created_at, eh_reforco").eq("professor_id", professorId).eq("status", "publicada"),
     db.from("profiles").select("id, nome, turma_id").eq("papel", "aluno").in("turma_id", turmas.map((t) => t.id)),
   ]);
-  const atividadeIds = (atividades ?? []).map((a) => a.id);
-  const turmaDaAtividade = new Map((atividades ?? []).map((a) => [a.id, a.turma_id]));
+  type AtividadeDiag = { id: string; turma_id: string; titulo: string; publicada_em: string | null; created_at: string; eh_reforco?: boolean | null };
+  let atividades: AtividadeDiag[] = atividadesRes.data ?? [];
+  if (atividadesRes.error) {
+    // Fallback se a migration `eh_reforco` ainda não tiver sido aplicada no banco.
+    const { data: legadas } = await db
+      .from("atividades")
+      .select("id, turma_id, titulo, publicada_em, created_at")
+      .eq("professor_id", professorId)
+      .eq("status", "publicada");
+    atividades = legadas ?? [];
+  }
+  const atividadeIds = atividades.map((a) => a.id);
+  const turmaDaAtividade = new Map(atividades.map((a) => [a.id, a.turma_id]));
 
   const { data: entregas } = atividadeIds.length
     ? await db.from("entregas").select("id, aluno_id, atividade_id, enviada_em").in("atividade_id", atividadeIds)
@@ -155,7 +166,7 @@ export async function diagnosticosDoProfessor(professorId: string): Promise<Diag
       turma,
       evolucao: {
         atividades: atividadesDaTurma.map((a) => ({
-          id: a.id, titulo: a.titulo, data: a.publicada_em ?? a.created_at, reforco: ehReforco(a.titulo),
+          id: a.id, titulo: a.titulo, data: a.publicada_em ?? a.created_at, reforco: ehReforco(a.titulo, a.eh_reforco),
         })),
         linhas: linhasEvolucao,
       },

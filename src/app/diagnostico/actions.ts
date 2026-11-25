@@ -13,6 +13,7 @@ import { salvarAtividadeGerada } from "@/lib/salvar-atividade";
 import type { Json } from "@/lib/supabase/database.types";
 
 export type EstadoResumo = { erro?: string } | undefined;
+export type EstadoNota = { erro?: string; ok?: string } | undefined;
 
 /** Gera (ou atualiza) o resumo IA da Turma e o guarda em cache em diagnostico_resumos. */
 export async function gerarResumo(_: EstadoResumo, formData: FormData): Promise<EstadoResumo> {
@@ -97,7 +98,7 @@ export async function gerarReforco(_: EstadoResumo, formData: FormData): Promise
   let atividadeId: string;
   try {
     atividadeId = await salvarAtividadeGerada(supabase, {
-      professorId: professor.id, turmaId, materialId: topico.material_id, titulo: `Reforço: ${topico.nome}`, geradas, trechos,
+      professorId: professor.id, turmaId, materialId: topico.material_id, titulo: `Reforço: ${topico.nome}`, geradas, trechos, ehReforco: true,
     });
   } catch (e) {
     console.error("gerarReforco salvar:", e);
@@ -119,21 +120,28 @@ async function respostaDaProfessora(respostaId: string, professorId: string) {
 }
 
 /** Professora ajusta a nota da IA (0 a 10) ou volta para a nota da IA (campo vazio). */
-export async function ajustarNota(formData: FormData) {
+export async function ajustarNota(_: EstadoNota, formData: FormData): Promise<EstadoNota> {
   const { professor } = await getProfessorAtual();
   const alvo = await respostaDaProfessora(String(formData.get("resposta_id") ?? ""), professor.id);
-  if (!alvo) return;
+  if (!alvo) return { erro: "Resposta não encontrada." };
 
   const bruto = String(formData.get("nota") ?? "").trim().replace(",", ".");
   let nota: number | null = null;
   if (bruto !== "") {
     const n = Number(bruto);
-    if (!Number.isFinite(n) || n < 0 || n > 10) return;
+    if (!Number.isFinite(n) || n < 0 || n > 10) {
+      return { erro: "Informe uma nota válida entre 0 e 10." };
+    }
     nota = Math.round((n / 10) * 1000) / 1000;
   }
-  await alvo.supabase.from("respostas").update({ nota_ajustada: nota }).eq("id", alvo.resposta.id);
+  const { error } = await alvo.supabase.from("respostas").update({ nota_ajustada: nota }).eq("id", alvo.resposta.id);
+  if (error) {
+    console.error("ajustarNota:", error);
+    return { erro: "Não foi possível salvar a nota. Tente novamente." };
+  }
   revalidatePath(`/diagnostico/aluno/${alvo.alunoId}`);
   revalidatePath("/diagnostico");
+  return { ok: nota === null ? "Nota restaurada para a da IA." : "Nota ajustada." };
 }
 
 /** Refaz a correção por IA de uma dissertativa que ficou pendente (cota esgotada ou falha de rede). */

@@ -9,6 +9,7 @@ import { recuperarTrechosRelevantes } from "@/lib/rag";
 import { salvarAtividadeGerada } from "@/lib/salvar-atividade";
 
 export type EstadoForm = { erro?: string } | undefined;
+export type EstadoQuestao = { erro?: string; ok?: string } | undefined;
 
 const inteiro = (v: FormDataEntryValue | null, min: number, max: number, padrao: number) => {
   const n = Number(v);
@@ -163,41 +164,57 @@ function parseRubrica(texto: string) {
   }).filter((r) => r.criterio);
 }
 
-export async function salvarQuestao(formData: FormData) {
-  const atividadeId = String(formData.get("atividade_id"));
-  const questaoId = String(formData.get("questao_id"));
-  const { supabase } = await atividadeEditavel(atividadeId);
+export async function salvarQuestao(_: EstadoQuestao, formData: FormData): Promise<EstadoQuestao> {
+  const atividadeId = String(formData.get("atividade_id") ?? "");
+  const questaoId = String(formData.get("questao_id") ?? "");
+
+  let supabase;
+  try {
+    ({ supabase } = await atividadeEditavel(atividadeId));
+  } catch {
+    return { erro: "Esta atividade já foi publicada e não pode mais ser editada." };
+  }
 
   const { data: q } = await supabase.from("questoes").select("id, tipo")
     .eq("id", questaoId).eq("atividade_id", atividadeId).maybeSingle();
-  if (!q) return;
+  if (!q) return { erro: "Questão não encontrada." };
 
   const enunciado = String(formData.get("enunciado") ?? "").trim();
-  if (!enunciado) return;
+  if (!enunciado) return { erro: "O enunciado não pode ficar vazio." };
 
   if (q.tipo === "dissertativa") {
     const rubrica = parseRubrica(String(formData.get("rubrica") ?? ""));
-    if (!rubrica.length) return;
-    await supabase.from("questoes").update({ enunciado, rubrica }).eq("id", questaoId);
+    if (!rubrica.length) return { erro: "Informe ao menos um critério na rubrica no formato: critério | pontos." };
+    if (rubrica.some((r) => r.pontos < 0) || rubrica.reduce((s, r) => s + r.pontos, 0) <= 0) {
+      return { erro: "Os pontos da rubrica devem ser positivos e somar mais que zero." };
+    }
+    const { error } = await supabase.from("questoes").update({ enunciado, rubrica }).eq("id", questaoId);
+    if (error) return { erro: "Não foi possível salvar a questão." };
   } else {
     const { data: alts } = await supabase.from("alternativas").select("id").eq("questao_id", questaoId);
-    const corretaId = String(formData.get("correta"));
-    if (!alts?.some((a) => a.id === corretaId)) return;
+    const corretaId = String(formData.get("correta") ?? "");
+    if (!alts?.some((a) => a.id === corretaId)) return { erro: "Marque qual alternativa é a correta." };
     const novas = alts.map((a) => ({
       id: a.id,
       texto: String(formData.get(`texto_${a.id}`) ?? "").trim(),
       correta: a.id === corretaId,
       equivoco: String(formData.get(`equivoco_${a.id}`) ?? "").trim(),
     }));
-    if (novas.some((a) => !a.texto || (!a.correta && !a.equivoco))) return;
-    await supabase.from("questoes").update({ enunciado }).eq("id", questaoId);
+    if (novas.some((a) => !a.texto)) return { erro: "Preencha o texto de todas as alternativas." };
+    if (novas.some((a) => !a.correta && !a.equivoco)) {
+      return { erro: "Cada alternativa errada (distrator) precisa descrever o equívoco." };
+    }
+    const { error: eq } = await supabase.from("questoes").update({ enunciado }).eq("id", questaoId);
+    if (eq) return { erro: "Não foi possível salvar o enunciado." };
     for (const a of novas) {
-      await supabase.from("alternativas")
+      const { error: ea } = await supabase.from("alternativas")
         .update({ texto: a.texto, correta: a.correta, equivoco: a.correta ? null : a.equivoco })
         .eq("id", a.id).eq("questao_id", questaoId);
+      if (ea) return { erro: "Não foi possível salvar as alternativas." };
     }
   }
   revalidatePath(`/atividades/${atividadeId}`);
+  return { ok: "Questão salva." };
 }
 
 export async function removerQuestao(formData: FormData) {

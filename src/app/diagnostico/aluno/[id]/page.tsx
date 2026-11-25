@@ -7,8 +7,8 @@ import { detalheDoAluno } from "@/lib/aluno-detalhe";
 import { LIMIAR_LACUNA, MIN_QUESTOES } from "@/lib/diagnostico";
 import { Bolinhas } from "../../../bolinhas";
 import { IconeVoltar } from "../../../icones";
-import { ajustarNota } from "../../actions";
 import { BotaoCorrigir } from "../../botao-corrigir";
+import { FormNota } from "../../form-nota";
 
 export const metadata = { title: "Aluno — s.ai" };
 
@@ -16,7 +16,6 @@ export const metadata = { title: "Aluno — s.ai" };
 export const maxDuration = 120;
 
 const pct = (d: number) => `${Math.round(d * 100)}%`;
-const dez = (n: number) => (Math.round(n * 100) / 10).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 export default function AlunoPage({ params }: PageProps<"/diagnostico/aluno/[id]">) {
   return (
@@ -109,9 +108,7 @@ async function Conteudo({ params }: { params: PageProps<"/diagnostico/aluno/[id]
                 A nota da IA vem da rubrica. Você pode ajustá-la; o ajuste vale no feedback do aluno e no Diagnóstico.
               </p>
               <ul className="space-y-5">
-                {det.dissertativas.map((r) => {
-                  const atual = r.notaAjustada ?? r.notaIa;
-                  return (
+                {det.dissertativas.map((r) => (
                     <li key={r.id} className="card p-5">
                       <p className="text-xs text-muted">{r.atividade} · {r.topico}</p>
                       <p className="mt-2 text-[0.9375rem] whitespace-pre-wrap">{r.enunciado}</p>
@@ -135,45 +132,11 @@ async function Conteudo({ params }: { params: PageProps<"/diagnostico/aluno/[id]
                             </ul>
                           )}
                           {r.comentario && <p className="mt-2 text-sm text-muted">{r.comentario}</p>}
-                          <div className="mt-4 flex flex-wrap items-end gap-x-6 gap-y-3 border-t border-line pt-4">
-                            <p className="text-sm">
-                              Nota da IA: <strong className="tabular-nums">{dez(r.notaIa ?? 0)}</strong>
-                              {r.notaAjustada !== null && (
-                                <>
-                                  {" "}· ajustada por você: <strong className="tabular-nums text-ok">{dez(r.notaAjustada)}</strong>
-                                </>
-                              )}
-                            </p>
-                            <form action={ajustarNota} className="flex items-end gap-2">
-                              <input type="hidden" name="resposta_id" value={r.id} />
-                              <label className="text-xs text-muted">
-                                Nova nota (0 a 10)
-                                <input
-                                  name="nota"
-                                  type="number"
-                                  inputMode="decimal"
-                                  min={0}
-                                  max={10}
-                                  step={0.5}
-                                  defaultValue={atual === null ? "" : (Math.round(atual * 100) / 10).toString()}
-                                  className="field mt-1 w-24"
-                                />
-                              </label>
-                              <button className="btn btn-primary btn-sm">Salvar nota</button>
-                            </form>
-                            {r.notaAjustada !== null && (
-                              <form action={ajustarNota}>
-                                <input type="hidden" name="resposta_id" value={r.id} />
-                                <input type="hidden" name="nota" value="" />
-                                <button className="btn btn-secondary btn-sm">Voltar à nota da IA</button>
-                              </form>
-                            )}
-                          </div>
+                          <FormNota respostaId={r.id} notaIa={r.notaIa} notaAjustada={r.notaAjustada} />
                         </>
                       )}
                     </li>
-                  );
-                })}
+                ))}
               </ul>
             </section>
           )}

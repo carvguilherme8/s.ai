@@ -40,7 +40,7 @@ export async function proxy(request: NextRequest) {
   }
   if (user && (pathname === "/entrar" || pathname === "/cadastro")) {
     const url = request.nextUrl.clone();
-    url.pathname = user.user_metadata?.papel === "professor" ? "/" : "/aluno";
+    url.pathname = user.app_metadata?.papel === "professor" ? "/" : "/aluno";
     return NextResponse.redirect(url);
   }
   return response;

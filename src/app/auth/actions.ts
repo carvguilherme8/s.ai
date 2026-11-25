@@ -15,7 +15,7 @@ export async function entrar(_: EstadoForm, form: FormData): Promise<EstadoForm>
   redirect(perfil?.papel === "professor" ? "/" : "/aluno");
 }
 
-/** Cadastro de ALUNO com código de convite (a professora usa o login simulado). */
+/** Cadastro de ALUNO com código de convite (professoras entram em /entrar e só são criadas pelo admin). */
 export async function cadastrar(_: EstadoForm, form: FormData): Promise<EstadoForm> {
   const email = String(form.get("email") ?? "").trim();
   const senha = String(form.get("senha") ?? "");

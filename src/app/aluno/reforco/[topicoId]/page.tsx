@@ -66,8 +66,9 @@ async function Conteudo({ params }: { params: PageProps<"/aluno/reforco/[topicoI
     if (eq) equivocos.set(eq, (equivocos.get(eq) ?? 0) + 1);
   }
 
-  const dominio = notas.length ? notas.reduce((a, b) => a + b, 0) / notas.length : null;
-  const lacuna = notas.length >= MIN_QUESTOES && dominio !== null && dominio < LIMIAR_LACUNA;
+  const suficiente = notas.length >= MIN_QUESTOES;
+  const dominio = suficiente ? notas.reduce((a, b) => a + b, 0) / notas.length : null;
+  const lacuna = dominio !== null && dominio < LIMIAR_LACUNA;
   const pagina = [...paginasErradas.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
   const principaisEquivocos = [...equivocos.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
   const linkMaterial = topico.material?.id

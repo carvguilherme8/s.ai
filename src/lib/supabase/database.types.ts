@@ -52,6 +52,7 @@ export type Database = {
       atividades: {
         Row: {
           created_at: string
+          eh_reforco: boolean
           id: string
           material_id: string | null
           prazo: string | null
@@ -63,6 +64,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          eh_reforco?: boolean
           id?: string
           material_id?: string | null
           prazo?: string | null
@@ -74,6 +76,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          eh_reforco?: boolean
           id?: string
           material_id?: string | null
           prazo?: string | null
