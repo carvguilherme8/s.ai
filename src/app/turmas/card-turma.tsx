@@ -174,7 +174,7 @@ export function CardTurma({ turma }: { turma: TurmaResumo }) {
             <input type="hidden" name="turma_id" value={turma.id} />
             <span className="text-xs text-danger">
               {turma.totalMateriais > 0 || turma.totalAtividades > 0
-                ? "Isso também remove os materiais e atividades desta turma."
+                ? `Isso também remove ${turma.totalMateriais} ${turma.totalMateriais === 1 ? "material" : "materiais"} e ${turma.totalAtividades} ${turma.totalAtividades === 1 ? "atividade" : "atividades"} desta turma.`
                 : "Excluir esta turma permanentemente?"}
             </span>
             <button disabled={excluindo} className="btn btn-danger btn-sm">

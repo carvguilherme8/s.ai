@@ -348,6 +348,51 @@ export type Database = {
           },
         ]
       }
+      reforco_sessoes: {
+        Row: {
+          aluno_id: string
+          created_at: string
+          expira_em: string
+          gabarito: Json
+          id: string
+          topico_id: string
+          usada_em: string | null
+        }
+        Insert: {
+          aluno_id: string
+          created_at?: string
+          expira_em: string
+          gabarito: Json
+          id?: string
+          topico_id: string
+          usada_em?: string | null
+        }
+        Update: {
+          aluno_id?: string
+          created_at?: string
+          expira_em?: string
+          gabarito?: Json
+          id?: string
+          topico_id?: string
+          usada_em?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reforco_sessoes_aluno_id_fkey"
+            columns: ["aluno_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reforco_sessoes_topico_id_fkey"
+            columns: ["topico_id"]
+            isOneToOne: false
+            referencedRelation: "topicos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       respostas: {
         Row: {
           alternativa_id: string | null

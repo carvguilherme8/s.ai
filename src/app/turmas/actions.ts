@@ -44,6 +44,7 @@ export async function criarTurma(_: EstadoAcao, formData: FormData): Promise<Est
     nome,
   });
   if (error) {
+    if (error.code === "23505") return { erro: "Você já tem uma turma com esse nome." };
     console.error("criarTurma:", error);
     return { erro: "Não foi possível criar a turma. Tente novamente." };
   }
@@ -79,6 +80,7 @@ export async function renomearTurma(_: EstadoAcao, formData: FormData): Promise<
     .eq("id", turmaId)
     .eq("professor_id", professor.id);
   if (error) {
+    if (error.code === "23505") return { erro: "Você já tem outra turma com esse nome." };
     console.error("renomearTurma:", error);
     return { erro: "Não foi possível renomear a turma." };
   }
@@ -162,6 +164,10 @@ export async function excluirTurma(_: EstadoAcao, formData: FormData): Promise<E
     .eq("id", turmaId)
     .eq("professor_id", professor.id);
   if (error) {
+    // Um aluno pode ter entrado na turma entre a contagem e o delete: a constraint aluno_tem_turma recusa.
+    if (error.code === "23514" || error.code === "23503") {
+      return { erro: "Um aluno acabou de entrar nesta turma, então ela não pode mais ser excluída." };
+    }
     console.error("excluirTurma:", error);
     return { erro: "Não foi possível excluir a turma." };
   }

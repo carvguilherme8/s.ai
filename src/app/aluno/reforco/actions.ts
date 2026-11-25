@@ -1,6 +1,6 @@
 "use server";
 
-import { createHmac, randomInt, timingSafeEqual } from "crypto";
+import { randomInt } from "crypto";
 import { getSessao } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { geminiConfigurado } from "@/lib/material-ia";
@@ -10,6 +10,8 @@ import { formatarTrechosParaPrompt, recuperarTrechosRelevantes } from "@/lib/rag
 
 const QUESTOES_PRATICA = 3;
 const VALIDADE_TOKEN_MS = 4 * 60 * 60 * 1000;
+const MAX_GERACOES = 6; // por aluno, dentro da janela abaixo
+const JANELA_GERACAO_MS = 10 * 60 * 1000;
 
 export type QuestaoPraticaPublica = {
   id: string;
@@ -44,12 +46,10 @@ export type ResultadoReforco = {
 export type EstadoGeracao = { erro?: string; sessao?: SessaoReforco } | undefined;
 export type EstadoCorrecao = { erro?: string; resultado?: ResultadoReforco } | undefined;
 
-type GabaritoAssinado = {
-  alunoId: string;
-  topicoId: string;
+/** Guardado em reforco_sessoes.gabarito (só no servidor). */
+type Gabarito = {
   topicoNome: string;
   materialId: string | null;
-  exp: number;
   questoes: {
     id: string;
     enunciado: string;
@@ -59,33 +59,6 @@ type GabaritoAssinado = {
     alternativas: { id: string; texto: string; correta: boolean; equivoco: string | null }[];
   }[];
 };
-
-function segredoAssinatura() {
-  const chave = process.env.SUPABASE_SECRET_KEY;
-  if (!chave) throw new Error("SUPABASE_SECRET_KEY não configurada.");
-  return chave;
-}
-
-function assinarGabarito(payload: GabaritoAssinado): string {
-  const corpo = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
-  const sig = createHmac("sha256", segredoAssinatura()).update(corpo).digest("base64url");
-  return `${corpo}.${sig}`;
-}
-
-function verificarGabarito(token: string): GabaritoAssinado | null {
-  const partes = token.split(".");
-  if (partes.length !== 2) return null;
-  const [corpo, sig] = partes;
-  const esperada = createHmac("sha256", segredoAssinatura()).update(corpo).digest("base64url");
-  const a = Buffer.from(sig);
-  const b = Buffer.from(esperada);
-  if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
-  try {
-    return JSON.parse(Buffer.from(corpo, "base64url").toString("utf8")) as GabaritoAssinado;
-  } catch {
-    return null;
-  }
-}
 
 function embaralhar<T>(lista: T[]): T[] {
   const copia = [...lista];
@@ -107,6 +80,15 @@ export async function gerarReforcoIndividual(_: EstadoGeracao, formData: FormDat
 
   const topicoId = String(formData.get("topico_id") ?? "");
   if (!topicoId) return { erro: "Tópico inválido." };
+  const admin = createAdminClient();
+  const { count: recentes } = await admin
+    .from("reforco_sessoes")
+    .select("*", { count: "exact", head: true })
+    .eq("aluno_id", sessao.user.id)
+    .gte("created_at", new Date(Date.now() - JANELA_GERACAO_MS).toISOString());
+  if ((recentes ?? 0) >= MAX_GERACOES) {
+    return { erro: "Você já praticou bastante agora. Aguarde alguns minutos para gerar novas questões." };
+  }
 
   // RLS garante que o aluno só enxerga tópicos confirmados de atividades publicadas na sua turma.
   const { data: topico } = await sessao.supabase
@@ -131,7 +113,6 @@ export async function gerarReforcoIndividual(_: EstadoGeracao, formData: FormDat
     .slice(0, 3)
     .map(([eq]) => eq);
 
-  const admin = createAdminClient();
   let trechosTodos: TrechoRef[] = [];
   let relevantes: TrechoRef[] = [];
   if (topico.material_id) {
@@ -163,7 +144,7 @@ export async function gerarReforcoIndividual(_: EstadoGeracao, formData: FormDat
 
   const trechoPorOrdem = new Map(trechosTodos.map((t) => [t.ordem, t]));
   const questoesPublicas: QuestaoPraticaPublica[] = [];
-  const questoesPrivadas: GabaritoAssinado["questoes"] = [];
+  const questoesPrivadas: Gabarito["questoes"] = [];
 
   for (const [i, q] of geradas.slice(0, QUESTOES_PRATICA).entries()) {
     const qid = `q${i}`;
@@ -194,14 +175,22 @@ export async function gerarReforcoIndividual(_: EstadoGeracao, formData: FormDat
 
   if (!questoesPublicas.length) return { erro: "Não foi possível montar as questões. Tente novamente." };
 
-  const token = assinarGabarito({
-    alunoId: sessao.user.id,
-    topicoId: topico.id,
-    topicoNome: topico.nome,
-    materialId: topico.material_id,
-    exp: Date.now() + VALIDADE_TOKEN_MS,
-    questoes: questoesPrivadas,
-  });
+  const gabarito: Gabarito = { topicoNome: topico.nome, materialId: topico.material_id, questoes: questoesPrivadas };
+  const { data: salva, error: erroSalvar } = await admin
+    .from("reforco_sessoes")
+    .insert({
+      aluno_id: sessao.user.id,
+      topico_id: topico.id,
+      gabarito,
+      expira_em: new Date(Date.now() + VALIDADE_TOKEN_MS).toISOString(),
+    })
+    .select("id")
+    .single();
+  if (erroSalvar || !salva) {
+    console.error("gerarReforcoIndividual salvar:", erroSalvar);
+    return { erro: "Não foi possível iniciar a prática. Tente novamente." };
+  }
+  const token = salva.id; // o navegador só recebe o id da sessão; o gabarito fica no servidor
 
   return { sessao: { token, questoes: questoesPublicas } };
 }
@@ -215,13 +204,19 @@ export async function corrigirReforcoIndividual(_: EstadoCorrecao, formData: For
   if (!sessao || sessao.profile.papel !== "aluno") return { erro: "Entre como aluno para corrigir." };
 
   const token = String(formData.get("token") ?? "");
-  const gabarito = verificarGabarito(token);
-  if (!gabarito || gabarito.alunoId !== sessao.user.id) {
-    return { erro: "Sessão de prática inválida. Gere novas questões." };
-  }
-  if (Date.now() > gabarito.exp) {
+  const admin = createAdminClient();
+  const { data: registro } = await admin
+    .from("reforco_sessoes")
+    .select("gabarito, expira_em, usada_em")
+    .eq("id", token)
+    .eq("aluno_id", sessao.user.id)
+    .maybeSingle();
+  if (!registro) return { erro: "Sessão de prática inválida. Gere novas questões." };
+  if (registro.usada_em) return { erro: "Estas questões já foram corrigidas. Gere novas questões para praticar de novo." };
+  if (Date.now() > new Date(registro.expira_em).getTime()) {
     return { erro: "Esta sessão de prática expirou. Gere novas questões." };
   }
+  const gabarito = registro.gabarito as unknown as Gabarito;
 
   const escolhidas = new Map<string, string>();
   for (const q of gabarito.questoes) {
@@ -230,6 +225,16 @@ export async function corrigirReforcoIndividual(_: EstadoCorrecao, formData: For
       return { erro: "Responda todas as questões antes de conferir o resultado." };
     }
     escolhidas.set(q.id, altId);
+  }
+  // Marca como usada de forma atômica: se outra requisição corrigiu antes, nenhuma linha é atualizada.
+  const { data: marcada } = await admin
+    .from("reforco_sessoes")
+    .update({ usada_em: new Date().toISOString() })
+    .eq("id", token)
+    .is("usada_em", null)
+    .select("id");
+  if (!marcada?.length) {
+    return { erro: "Estas questões já foram corrigidas. Gere novas questões para praticar de novo." };
   }
 
   const paraFeedback: ItemParaFeedback[] = [];
@@ -261,7 +266,6 @@ export async function corrigirReforcoIndividual(_: EstadoCorrecao, formData: For
     try {
       let contexto = "";
       if (gabarito.materialId) {
-        const admin = createAdminClient();
         const consulta = paraFeedback.map((it) => `${it.topico}: ${it.equivoco ?? it.enunciado.slice(0, 180)}`).join("\n");
         const trechosRag = await recuperarTrechosRelevantes(admin, gabarito.materialId, consulta, { limite: 4 });
         contexto = formatarTrechosParaPrompt(trechosRag);

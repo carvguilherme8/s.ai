@@ -55,60 +55,60 @@ export async function PainelProfessor() {
           <Link href="/turmas" className="-my-3 py-3 text-sm font-medium text-link hover:underline">Gerenciar</Link>
         </div>
         {turmas?.length ? (
-        <div className="grid gap-4 sm:grid-cols-2">
-          {turmas?.map((t) => {
-            const diag = diagPorTurma.get(t.id);
-            const lacunas = diag ? lacunasDaTurma(diag) : [];
-            const principal = lacunas[0];
-            const entregaram = diag?.alunos.filter((a) => a.entregou).length ?? 0;
-            return (
-              <article key={t.id} className="card flex flex-col p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h3 className="text-xl font-semibold">{t.nome}</h3>
-                    <p className="mt-0.5 text-sm text-muted">
-                      {t.alunos.length} alunos{diag && diag.totalEntregas > 0 && ` · ${entregaram} entregaram`}
-                    </p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {turmas.map((t) => {
+              const diag = diagPorTurma.get(t.id);
+              const lacunas = diag ? lacunasDaTurma(diag) : [];
+              const principal = lacunas[0];
+              const entregaram = diag?.alunos.filter((a) => a.entregou).length ?? 0;
+              return (
+                <article key={t.id} className="card flex flex-col p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-xl font-semibold">{t.nome}</h3>
+                      <p className="mt-0.5 text-sm text-muted">
+                        {t.alunos.length} alunos{diag && diag.totalEntregas > 0 && ` · ${entregaram} entregaram`}
+                      </p>
+                    </div>
+                    <CopiarCodigo codigo={t.codigo_convite} />
                   </div>
-                  <CopiarCodigo codigo={t.codigo_convite} />
-                </div>
 
-                <div className="mt-4 flex-1">
-                  {principal ? (
-                    <Link
-                      href={`/diagnostico?turma=${t.id}`}
-                      className="block rounded-lg border border-line p-3.5 transition-colors hover:bg-sunken"
-                    >
-                      <span className="flex items-start justify-between gap-3">
-                        <span className="text-lg leading-snug">
-                          <span className="text-muted">Trava em </span>
-                          <span className="font-display font-semibold"><span className="grifo">{principal.nome}</span></span>
+                  <div className="mt-4 flex-1">
+                    {principal ? (
+                      <Link
+                        href={`/diagnostico?turma=${t.id}`}
+                        className="block rounded-lg border border-line p-3.5 transition-colors hover:bg-sunken"
+                      >
+                        <span className="flex items-start justify-between gap-3">
+                          <span className="text-lg leading-snug">
+                            <span className="text-muted">Trava em </span>
+                            <span className="font-display font-semibold"><span className="grifo">{principal.nome}</span></span>
+                          </span>
+                          <span className="font-display text-2xl leading-none font-bold text-danger tabular-nums">{pct(principal.dominio)}</span>
                         </span>
-                        <span className="font-display text-2xl leading-none font-bold text-danger tabular-nums">{pct(principal.dominio)}</span>
-                      </span>
-                      <Bolinhas valor={principal.dominio ?? 0} className="mt-3 text-danger" />
-                    </Link>
-                  ) : diag && diag.totalEntregas > 0 ? (
-                    <p className="rounded-lg bg-ok-soft p-3 text-sm text-ok-ink">Sem lacunas nos tópicos avaliados.</p>
-                  ) : (
-                    <p className="rounded-lg bg-sunken p-3 text-sm text-muted">Ainda sem entregas para diagnosticar.</p>
-                  )}
-                </div>
+                        <Bolinhas valor={principal.dominio ?? 0} className="mt-3 text-danger" />
+                      </Link>
+                    ) : diag && diag.totalEntregas > 0 ? (
+                      <p className="rounded-lg bg-ok-soft p-3 text-sm text-ok-ink">Sem lacunas nos tópicos avaliados.</p>
+                    ) : (
+                      <p className="rounded-lg bg-sunken p-3 text-sm text-muted">Ainda sem entregas para diagnosticar.</p>
+                    )}
+                  </div>
 
-                {t.alunos.length > 0 && (
-                  <details className="mt-4 text-sm">
-                    <summary className="cursor-pointer text-muted hover:text-ink">Ver alunos</summary>
-                    <ul className="mt-2 grid grid-cols-2 gap-x-4 gap-y-0.5">
-                      {t.alunos.map((a) => (
-                        <li key={a.id} className="truncate">{a.nome.replace(" (fictício)", "")}</li>
-                      ))}
-                    </ul>
-                  </details>
-                )}
-              </article>
-            );
-          })}
-        </div>
+                  {t.alunos.length > 0 && (
+                    <details className="mt-4 text-sm">
+                      <summary className="cursor-pointer text-muted hover:text-ink">Ver alunos</summary>
+                      <ul className="mt-2 grid grid-cols-2 gap-x-4 gap-y-0.5">
+                        {t.alunos.map((a) => (
+                          <li key={a.id} className="truncate">{a.nome.replace(" (fictício)", "")}</li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
+                </article>
+              );
+            })}
+          </div>
         ) : (
           <p className="rounded-xl border border-dashed border-line-strong p-6 text-sm text-muted">
             Nenhuma turma ainda.{" "}

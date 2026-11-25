@@ -21,8 +21,8 @@ O arquivo `.env.local` **não** vai para o repositório (está no `.gitignore`).
 
 1. O schema está em `supabase/migrations/` e precisa estar aplicado no projeto Supabase.
 2. **Aplique as migrations em `supabase/migrations/`** (incluindo `20261124230000_professor_somente_por_admin.sql`,
-   `20261125120000_disciplina_em_materiais.sql`, `20261125164500_busca_trechos_pgvector.sql` e
-   `20261125173500_eh_reforco_em_atividades.sql`).
+   `20261125120000_disciplina_em_materiais.sql`, `20261125164500_busca_trechos_pgvector.sql` ,
+   `20261125173500_eh_reforco_em_atividades.sql` e `20261125190000_turmas_nome_unico.sql`, `20261125200000_reforco_sessoes.sql` e `20261125210000_reforco_sessoes_grants.sql`).
    Rode-as no SQL Editor do Supabase. A primeira impede que alguém
    se cadastre como professor pelo cadastro público. Em Authentication → Sign In / Providers, desligue também
    "Allow new users to sign up" (o cadastro de alunos usa a chave administrativa e continua funcionando).
