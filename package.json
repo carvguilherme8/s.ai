@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "seed": "node --env-file=.env.local scripts/seed.mjs",
-    "seed:diagnostico": "node --env-file=.env.local scripts/seed-diagnostico.mjs"
+    "seed:diagnostico": "node --env-file=.env.local scripts/seed-diagnostico.mjs",
+    "seed:reforco": "node --env-file=.env.local scripts/seed-reforco.mjs"
   },
   "dependencies": {
     "@google/genai": "^3.0.0",

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { getProfessorAtual } from "@/lib/usuario-atual";
 import { geminiConfigurado } from "@/lib/material-ia";
 import { gerarQuestoesDoTopico, type QuestaoGerada } from "@/lib/questoes-ia";
+import { salvarAtividadeGerada } from "@/lib/salvar-atividade";
 
 export type EstadoForm = { erro?: string } | undefined;
 
@@ -51,40 +52,13 @@ export async function gerarAtividade(_: EstadoForm, formData: FormData): Promise
   resultados.forEach((r) => r.status === "rejected" && console.error("gerarQuestoes:", r.reason));
   if (!geradas.length) return { erro: "A IA não conseguiu gerar questões agora. Tente novamente." };
 
-  const trechoPorOrdem = new Map(trechos.map((t) => [t.ordem, t.id]));
-  const atividadeId = crypto.randomUUID();
+  let atividadeId: string;
   try {
-    const { error } = await supabase.from("atividades").insert({
-      id: atividadeId, professor_id: professor.id, turma_id: turmaId, material_id: materialId, titulo,
+    atividadeId = await salvarAtividadeGerada(supabase, {
+      professorId: professor.id, turmaId, materialId, titulo, geradas, trechos,
     });
-    if (error) throw error;
-
-    for (const [i, q] of geradas.entries()) {
-      const questaoId = crypto.randomUUID();
-      const { error: eq } = await supabase.from("questoes").insert({
-        id: questaoId,
-        atividade_id: atividadeId,
-        topico_id: q.topico_id,
-        trecho_id: (q.trecho_ordem != null && trechoPorOrdem.get(q.trecho_ordem)) || null,
-        tipo: q.tipo,
-        ordem: i,
-        enunciado: q.enunciado,
-        rubrica: q.rubrica,
-      });
-      if (eq) throw eq;
-      if (q.tipo === "multipla_escolha") {
-        const { error: ea } = await supabase.from("alternativas").insert(
-          q.alternativas.map((a, j) => ({
-            questao_id: questaoId, ordem: j, texto: a.texto, correta: a.correta,
-            equivoco: a.correta ? null : a.equivoco!.trim(),
-          })),
-        );
-        if (ea) throw ea;
-      }
-    }
   } catch (e) {
     console.error("gerarAtividade:", e);
-    await supabase.from("atividades").delete().eq("id", atividadeId).eq("professor_id", professor.id);
     return { erro: "Não foi possível salvar a atividade. Tente novamente." };
   }
 

@@ -13,6 +13,15 @@ export type Celula = {
   lacuna: boolean;
 };
 
+/** Atividade de reforço: criada a partir de uma lacuna (título começa com "Reforço"). */
+export const ehReforco = (titulo: string) => titulo.startsWith("Reforço");
+
+export type Evolucao = {
+  atividades: { id: string; titulo: string; data: string; reforco: boolean }[];
+  /** Domínio da Turma por tópico em cada atividade, na mesma ordem de `atividades`; null = dados insuficientes. */
+  linhas: { topicoId: string; nome: string; valores: (number | null)[] }[];
+};
+
 export type DiagnosticoTurma = {
   turma: { id: string; nome: string };
   topicos: { id: string; nome: string; paginas: number[] }[];
@@ -22,6 +31,7 @@ export type DiagnosticoTurma = {
   totalAlunos: number;
   totalEntregas: number;
   ultimaEntrega: string | null;
+  evolucao: Evolucao;
 };
 
 const media = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
@@ -34,7 +44,7 @@ export async function diagnosticosDoProfessor(professorId: string): Promise<Diag
   if (!turmas?.length) return [];
 
   const [{ data: atividades }, { data: alunos }] = await Promise.all([
-    db.from("atividades").select("id, turma_id").eq("professor_id", professorId).eq("status", "publicada"),
+    db.from("atividades").select("id, turma_id, titulo, publicada_em, created_at").eq("professor_id", professorId).eq("status", "publicada"),
     db.from("profiles").select("id, nome, turma_id").eq("papel", "aluno").in("turma_id", turmas.map((t) => t.id)),
   ]);
   const atividadeIds = (atividades ?? []).map((a) => a.id);
@@ -120,8 +130,34 @@ export async function diagnosticosDoProfessor(professorId: string): Promise<Diag
       contagem.set(chave, atual);
     }
 
+    // Evolução: domínio da Turma por tópico em cada atividade, em ordem cronológica.
+    const atividadesDaTurma = (atividades ?? [])
+      .filter((a) => a.turma_id === turma.id && entregasDaTurma.some((e) => e.atividade_id === a.id))
+      .sort((a, b) => (a.publicada_em ?? a.created_at).localeCompare(b.publicada_em ?? b.created_at));
+    const linhasEvolucao = topicosDaTurma.map((tid) => ({
+      topicoId: tid,
+      nome: nomeTopico.get(tid) ?? "—",
+      valores: atividadesDaTurma.map((a) => {
+        const porAluno = new Map<string, number[]>();
+        for (const r of respostasDaTurma) {
+          const e = entregaPorId.get(r.entrega_id);
+          const nota = r.nota_ajustada ?? r.nota_ia;
+          if (!e || e.atividade_id !== a.id || r.questao?.topico_id !== tid || nota === null) continue;
+          (porAluno.get(e.aluno_id) ?? porAluno.set(e.aluno_id, []).get(e.aluno_id)!).push(Number(nota));
+        }
+        const dominios = [...porAluno.values()].map((ns) => media(ns) as number);
+        return dominios.length >= MIN_ALUNOS_TURMA ? (media(dominios) as number) : null;
+      }),
+    })).filter((l) => l.valores.some((v) => v !== null));
+
     return {
       turma,
+      evolucao: {
+        atividades: atividadesDaTurma.map((a) => ({
+          id: a.id, titulo: a.titulo, data: a.publicada_em ?? a.created_at, reforco: ehReforco(a.titulo),
+        })),
+        linhas: linhasEvolucao,
+      },
       topicos: topicosDaTurma.map((id) => ({
         id, nome: nomeTopico.get(id) ?? "—", paginas: [...(paginasPorTopico.get(id) ?? [])].sort((a, b) => a - b),
       })),

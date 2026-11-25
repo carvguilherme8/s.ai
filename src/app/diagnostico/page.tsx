@@ -6,6 +6,8 @@ import { diagnosticosDoProfessor, lacunasDaTurma, LIMIAR_LACUNA, MIN_QUESTOES } 
 import type { ResumoDiagnostico } from "@/lib/diagnostico-ia";
 import { Bolinhas } from "../bolinhas";
 import { IconeLacuna } from "../icones";
+import { AcoesRelatorio } from "./acoes-relatorio";
+import { BotaoReforco } from "./botao-reforco";
 import { BotaoResumo } from "./botao-resumo";
 
 export const metadata = { title: "Diagnóstico — s.ai" };
@@ -65,10 +67,31 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
 
   const alunosEmLacuna = (tid: string) => d.alunos.filter((a) => a.celulas[tid]?.lacuna).length;
 
+  // Texto pronto para colar no WhatsApp (negrito com *asteriscos*).
+  const entregaram = d.alunos.filter((a) => a.entregou).length;
+  const relatorio = [
+    `*Diagnóstico ${d.turma.nome}* — ${new Date().toLocaleDateString("pt-BR")}`,
+    `${entregaram} de ${d.totalAlunos} alunos entregaram.`,
+    "",
+    ...(lacunas.length
+      ? [
+          "*Onde a turma está travando:*",
+          ...lacunas.flatMap((l) => [
+            `• ${l.nome}: ${pct(l.dominio ?? 0)} (${alunosEmLacuna(l.id)} de ${l.alunosComDados} alunos abaixo da meta)`,
+            ...d.equivocos.filter((e) => e.topicoId === l.id).slice(0, 2).map((e) => `   - ${e.equivoco}`),
+            ...(l.paginas.length ? [`   Revisar: p. ${l.paginas.join(", ")} do material`] : []),
+          ]),
+        ]
+      : [`Nenhum tópico abaixo de ${pct(LIMIAR_LACUNA)}.`]),
+    ...(resumo ? ["", "*Resumo:*", resumo.resumo] : []),
+    "",
+    "Gerado pelo s.ai",
+  ].join("\n");
+
   return (
     <div className="mt-6 space-y-10">
       {/* Turmas */}
-      <nav aria-label="Turmas" className="flex flex-wrap items-center gap-2">
+      <nav aria-label="Turmas" className="no-print flex flex-wrap items-center gap-2">
         {comDados.map((t) => (
           <Link
             key={t.turma.id}
@@ -83,6 +106,7 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
           {d.alunos.filter((a) => a.entregou).length} de {d.totalAlunos} alunos entregaram
         </span>
       </nav>
+      <AcoesRelatorio texto={relatorio} />
 
       {/* Onde a turma está travando */}
       <section aria-labelledby="h-lacunas">
@@ -113,6 +137,7 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
                       ))}
                     </ul>
                   )}
+                  <BotaoReforco turmaId={d.turma.id} topicoId={l.id} />
                 </li>
               );
             })}
@@ -145,7 +170,7 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
             A IA transforma os números abaixo em um plano de revisão. Gerado sob demanda e guardado.
           </p>
         )}
-        <div className="mt-3">
+        <div className="no-print mt-3">
           <BotaoResumo turmaId={d.turma.id} rotulo={resumo ? "Atualizar resumo" : "Gerar resumo com IA"} />
         </div>
       </section>
@@ -199,7 +224,13 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
               {d.alunos.map((a) => (
                 <tr key={a.id}>
                   <th scope="row" className="sticky left-0 bg-background px-2 sm:px-3 py-1.5 text-left font-normal whitespace-nowrap">
-                    {a.nome.replace(" (fictício)", "")}
+                    <Link
+                      href={`/diagnostico/aluno/${a.id}`}
+                      title={`Ver o detalhe de ${a.nome.replace(" (fictício)", "")}`}
+                      className="underline-offset-4 hover:underline"
+                    >
+                      {a.nome.replace(" (fictício)", "")}
+                    </Link>
                     {!a.entregou && <span className="ml-2 text-xs text-muted">sem entrega</span>}
                   </th>
                   {topicosMapa.map((t) => {
@@ -227,6 +258,70 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
         </div>
           <div aria-hidden className="pointer-events-none absolute inset-y-px right-px w-8 rounded-r-xl bg-gradient-to-l from-surface to-transparent sm:hidden" />
         </div>
+      </section>
+
+      {/* Evolução por atividade */}
+      <section aria-labelledby="h-evo">
+        <h2 id="h-evo" className="mb-1 text-xl font-bold">Evolução por atividade</h2>
+        {d.evolucao.atividades.length < 2 || d.evolucao.linhas.length === 0 ? (
+          <p className="rounded-xl bg-sunken p-4 text-sm text-muted">
+            Aplique outra atividade, por exemplo um reforço, para acompanhar o domínio da turma ao longo do tempo.
+          </p>
+        ) : (
+          <>
+            <p className="mb-3 text-sm text-muted">
+              Domínio da turma em cada atividade, da mais antiga para a mais recente. Mostra se um reforço fechou a lacuna.
+            </p>
+            <div className="card overflow-x-auto">
+              <table className="w-full border-separate border-spacing-0.5 text-sm">
+                <thead>
+                  <tr>
+                    <th scope="col" className="sticky left-0 bg-background px-2 py-2 text-left font-medium sm:px-3">Tópico</th>
+                    {d.evolucao.atividades.map((a) => (
+                      <th key={a.id} scope="col" className="min-w-28 px-2 py-2 text-center text-xs font-medium">
+                        <span className="block">{a.titulo.replace(" (demo)", "")}</span>
+                        <span className="mt-0.5 block font-normal text-muted">
+                          {new Date(a.data).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
+                          {a.reforco && " · reforço"}
+                        </span>
+                      </th>
+                    ))}
+                    <th scope="col" className="min-w-20 px-2 py-2 text-center text-xs font-medium">Variação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {d.evolucao.linhas.map((l) => {
+                    const validos = l.valores.filter((v): v is number => v !== null);
+                    const delta = validos.length >= 2 ? validos[validos.length - 1] - validos[0] : null;
+                    return (
+                      <tr key={l.topicoId}>
+                        <th scope="row" className="sticky left-0 bg-background px-2 py-1.5 text-left font-normal sm:px-3">{l.nome}</th>
+                        {l.valores.map((v, i) =>
+                          v === null ? (
+                            <td key={i} className="rounded border border-dashed border-line-strong text-center text-muted">—</td>
+                          ) : (
+                            <td key={i} style={{ background: corCelula(v) }} className="rounded px-2 py-1.5 text-center tabular-nums">
+                              {v < LIMIAR_LACUNA && <IconeLacuna className="mr-1 inline text-[0.7em]" />}{pct(v)}
+                            </td>
+                          ),
+                        )}
+                        <td className="px-2 text-center font-semibold tabular-nums">
+                          {delta === null ? (
+                            <span className="text-muted">—</span>
+                          ) : (
+                            <span className={delta >= 0 ? "text-ok" : "text-danger"}>
+                              {delta >= 0 ? "+" : "−"}{Math.abs(Math.round(delta * 100))} pp
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </section>
 
       {/* Comparação entre turmas */}

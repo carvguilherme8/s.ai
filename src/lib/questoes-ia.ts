@@ -55,6 +55,8 @@ export async function gerarQuestoesDoTopico(
   trechos: TrechoRef[],
   nMultiplaEscolha: number,
   nDissertativas: number,
+  /** Equívocos frequentes da turma neste tópico: as questões de reforço devem testá-los. */
+  focoEquivocos: string[] = [],
 ): Promise<QuestaoGerada[]> {
   const material = trechos
     .map((t) => `[trecho ${t.ordem}${t.pagina ? `, página ${t.pagina}` : ""}]\n${t.conteudo}`)
@@ -76,7 +78,14 @@ export async function gerarQuestoesDoTopico(
       `refletir um erro conceitual real e comum; descreva-o em "equivoco" (ex.: "Confunde massa com peso").\n` +
       `- Dissertativa: inclua "rubrica" com 2 a 4 critérios objetivos, somando 10 pontos.\n` +
       `- Enunciados autocontidos, sem referenciar "o texto" ou "o material".\n` +
-      `- "trecho_ordem": número do trecho que fundamenta a questão.\n\n` +
+      `- "trecho_ordem": número do trecho que fundamenta a questão.\n` +
+      (focoEquivocos.length
+        ? `- Esta é uma atividade de REFORÇO. A turma tem estas dificuldades frequentes neste tópico: ` +
+          `${focoEquivocos.map((e) => `"${e}"`).join("; ")}. Cada questão deve ter pelo menos um distrator que represente ` +
+          `um desses equívocos (repita o texto do equívoco, ou algo muito próximo, no campo "equivoco") e deve levar o aluno ` +
+          `a superá-lo. Varie as situações; não repita enunciados óbvios do material.\n`
+        : ``) +
+      `\n` +
       `--- MATERIAL ---\n${material}`,
     config: { responseMimeType: "application/json", responseSchema: schema, abortSignal: AbortSignal.timeout(120_000) },
   });

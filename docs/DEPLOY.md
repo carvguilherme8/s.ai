@@ -24,7 +24,8 @@ O arquivo `.env.local` **não** vai para o repositório (está no `.gitignore`).
    se cadastre como professor pelo cadastro público. Em Authentication → Sign In / Providers, desligue também
    "Allow new users to sign up" (o cadastro de alunos usa a chave administrativa e continua funcionando).
 3. Com `SEED_PROFESSOR_PASSWORD` definida no `.env.local` (senha forte): `npm run seed` (professora, turmas e alunos) e `npm run seed:diagnostico`
-   (25 alunos fictícios e entregas simuladas com lacunas desenhadas).
+   (25 alunos fictícios e entregas simuladas com lacunas desenhadas) e, para a evolução no tempo, `npm run seed:reforco`
+   (um reforço fictício na 2ºA).
 4. Depois do seed, abra o Diagnóstico das duas turmas e clique em **Gerar resumo com IA** uma vez em cada.
    O resumo fica guardado e a demo não depende da cota do Gemini para mostrá-lo.
 

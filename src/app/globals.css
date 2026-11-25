@@ -332,3 +332,41 @@ input[type="file"]::file-selector-button:hover {
   resize: none;
   overflow: hidden;
 }
+
+/* ---------------------------------------------------------------------------
+   Impressão / PDF (relatório do Diagnóstico)
+   --------------------------------------------------------------------------- */
+@media print {
+  body > header,
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+    font-size: 11pt;
+  }
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+  /* mantém as cores do mapa de calor no papel */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .overflow-x-auto {
+    overflow: visible !important;
+  }
+  .sticky {
+    position: static !important;
+  }
+  section,
+  .card,
+  tr {
+    break-inside: avoid;
+  }
+  a {
+    text-decoration: none;
+    color: inherit;
+  }
+}
