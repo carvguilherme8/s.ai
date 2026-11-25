@@ -9,7 +9,7 @@ export const metadata = { title: "Atividades — s.ai" };
 export default function AtividadesPage() {
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-10">
-      <h1 className="text-2xl font-semibold tracking-tight">Atividades</h1>
+      <h1 className="text-3xl font-bold tracking-tight">Atividades</h1>
       <p className="mt-1 max-w-prose text-muted">
         A IA gera as questões a partir de um material; você revisa e só então publica para a turma.
       </p>

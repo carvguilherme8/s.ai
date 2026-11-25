@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-24T23:30:00.000Z",
+  "title": "Design System: s.ai",
+  "extensions": {
+    "colorMeta": {
+      "marca-texto": { "role": "primary", "displayName": "Marca-texto", "canonical": "#ffe14d", "tonalRamp": ["#fff1b8", "#ffe14d", "#ffd51a"] },
+      "tinta": { "role": "neutral", "displayName": "Tinta", "canonical": "#16181d", "tonalRamp": ["#5d5b52", "#2b2e35", "#16181d"] },
+      "papel": { "role": "neutral", "displayName": "Papel", "canonical": "#fbf9f1", "tonalRamp": ["#fffefa", "#fbf9f1", "#f3efe1"] },
+      "correcao": { "role": "secondary", "displayName": "Caneta de correção", "canonical": "#b92c1a", "tonalRamp": ["#fbe6e1", "#b92c1a"] },
+      "caneta-azul": { "role": "secondary", "displayName": "Caneta azul", "canonical": "#1f3fbf", "tonalRamp": ["#1f3fbf", "#93a8ff"] },
+      "visto": { "role": "secondary", "displayName": "Visto", "canonical": "#1d7a4a", "tonalRamp": ["#e1f1e6", "#1d7a4a", "#14532f"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Títulos de página e números de domínio em destaque." },
+      "body": { "displayName": "Corpo", "purpose": "Texto corrido e interface em Geist." }
+    },
+    "shadows": [],
+    "motion": [
+      { "name": "saida-exponencial", "value": "cubic-bezier(0.22, 1, 0.36, 1)", "purpose": "Transições de cor, borda e 1px de clique em botões e campos (0.15s)." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Botão primário",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Ação principal da tela, em marca-texto com borda de tinta.",
+      "html": "<button class=\"ds-btn-primary\">Ver diagnóstico</button>",
+      "css": ".ds-btn-primary{background:#ffe14d;color:#16181d;border:1px solid #16181d;border-radius:8px;min-height:40px;padding:8px 16px;font:600 14px Geist,system-ui,sans-serif;cursor:pointer;transition:background-color .15s cubic-bezier(.22,1,.36,1)}.ds-btn-primary:hover{background:#ffd51a}.ds-btn-primary:focus-visible{outline:2px solid #1f3fbf;outline-offset:2px}"
+    },
+    {
+      "name": "Grifo",
+      "kind": "custom",
+      "refersTo": "marca-texto",
+      "description": "Gesto de assinatura: passada de marca-texto sobre o que deve ser revisado.",
+      "html": "<p style=\"font:600 18px Geist,system-ui,sans-serif;color:#16181d\">Trava em <span class=\"ds-grifo\">Segunda Lei (F = m·a)</span></p>",
+      "css": ".ds-grifo{background:linear-gradient(101deg,transparent .5%,#ffe14d 2.2%,#ffe14d 96.5%,transparent 99.5%);color:#16181d;padding:.04em .3em;margin:0 -.15em;border-radius:.25em .4em .3em .45em;-webkit-box-decoration-break:clone;box-decoration-break:clone}"
+    },
+    {
+      "name": "Cartão",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Superfície de conteúdo: folha com borda fina, sem sombra.",
+      "html": "<div class=\"ds-card\"><strong>2ºA</strong><br>14 alunos · 13 entregaram</div>",
+      "css": ".ds-card{background:#fffefa;border:1px solid #e5dfcc;border-radius:12px;padding:20px;color:#16181d;font:15px/1.55 Geist,system-ui,sans-serif}"
+    },
+    {
+      "name": "Alternativa (cartão-resposta)",
+      "kind": "custom",
+      "refersTo": "radio",
+      "description": "Bolinha de letra; preenchida marca a alternativa escolhida.",
+      "html": "<span class=\"ds-bolha\">A</span> <span class=\"ds-bolha ds-bolha-cheia\">B</span> <span class=\"ds-bolha\">C</span>",
+      "css": ".ds-bolha{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border:1.5px solid #16181d;border-radius:9999px;font:600 12px Geist,system-ui,sans-serif;color:#16181d;margin-right:6px}.ds-bolha-cheia{background:#16181d;color:#fbf9f1}"
+    },
+    {
+      "name": "Barra de navegação",
+      "kind": "nav",
+      "refersTo": "nav-bar",
+      "description": "Barra de tinta com o item ativo grifado.",
+      "html": "<nav class=\"ds-nav\"><b>s<span class=\"ds-g\">.ai</span></b><a class=\"ds-on\">Painel</a><a>Materiais</a><a>Atividades</a></nav>",
+      "css": ".ds-nav{display:flex;gap:16px;align-items:center;background:#16181d;color:#fbf9f1;padding:10px 16px;font:500 14px Geist,system-ui,sans-serif}.ds-nav a{opacity:.7}.ds-nav .ds-on{opacity:1;background:#ffe14d;color:#16181d;padding:2px 8px;border-radius:6px}.ds-g{background:#ffe14d;color:#16181d;border-radius:6px;padding:0 6px;margin-left:4px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "A folha grifada",
+    "overview": "A interface é uma folha de papel em que a professora marca o que importa. Tinta preta, papel quente e o amarelo de marca-texto só onde há algo a revisar ou fazer. A identidade entra por tipografia, paleta, densidade e um gesto (o grifo); a organização das telas segue os padrões conhecidos de ferramentas de trabalho.",
+    "keyCharacteristics": [
+      "Cabeçalho em tinta preta, logotipo e item ativo grifados",
+      "Um só gesto de assinatura: o grifo",
+      "Bolinhas de cartão-resposta só onde há escolha ou dado",
+      "Vermelho para lacuna, azul para link e foco, verde para certo"
+    ],
+    "rules": [
+      { "name": "A regra de uma voz", "body": "O amarelo nunca é cor de status, série de gráfico ou decoração: significa olhe aqui.", "section": "colors" },
+      { "name": "A regra do display com sentido", "body": "Bricolage Grotesque só em títulos e em números que importam; interface em Geist.", "section": "typography" }
+    ],
+    "dos": [
+      "Reservar o grifo para lacuna, trecho a revisar, item ativo e ação principal",
+      "Manter número e ícone ao lado de qualquer cor que carregue significado",
+      "Usar texto de tinta sobre o marca-texto nos dois temas"
+    ],
+    "donts": [
+      "Usar amarelo como cor de status ou de gráfico",
+      "Grifar títulos só por decoração",
+      "Usar bolinhas como enfeite",
+      "Trocar controles por versões temáticas"
+    ]
+  }
+}

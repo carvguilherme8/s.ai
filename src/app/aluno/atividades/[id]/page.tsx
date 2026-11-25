@@ -54,7 +54,7 @@ async function Conteudo({ params }: { params: PageProps<"/aluno/atividades/[id]"
     return (
       <div className="mt-2 space-y-6">
         <header>
-          <h1 className="text-2xl font-semibold tracking-tight">{atividade.titulo}</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{atividade.titulo}</h1>
           <p className="mt-1 text-sm text-muted">
             {questoes.length} questões
             {atividade.prazo && ` · prazo ${new Date(atividade.prazo).toLocaleDateString("pt-BR")}`}
@@ -92,7 +92,7 @@ async function Conteudo({ params }: { params: PageProps<"/aluno/atividades/[id]"
   return (
     <div className="mt-2 space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">{atividade.titulo}</h1>
+        <h1 className="text-3xl font-bold tracking-tight">{atividade.titulo}</h1>
         <p className="mt-1 text-sm text-muted">
           Entregue em {new Date(entrega.enviada_em).toLocaleDateString("pt-BR")} · você fez{" "}
           <strong className="text-ink">{pontos.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} de {total}</strong>
@@ -100,9 +100,9 @@ async function Conteudo({ params }: { params: PageProps<"/aluno/atividades/[id]"
       </header>
 
       {feedback.resumo && (
-        <section className="rounded-xl bg-accent-soft p-5 text-accent-soft-ink">
-          <h2 className="mb-1 font-semibold">O que revisar</h2>
-          <p className="max-w-prose text-sm">{feedback.resumo}</p>
+        <section className="card p-5">
+          <h2 className="mb-2 text-lg font-bold"><span className="grifo">O que revisar</span></h2>
+          <p className="max-w-prose">{feedback.resumo}</p>
         </section>
       )}
 
@@ -114,7 +114,7 @@ async function Conteudo({ params }: { params: PageProps<"/aluno/atividades/[id]"
           const alts = [...q.alternativas].sort((a, b) => a.ordem - b.ordem);
           const correcao = r?.correcao as { criterios?: CriterioCorrecao[]; comentario?: string; pendente?: boolean } | null;
           const status = nota === null ? "em correção" : nota >= 1 ? "certa" : nota > 0 ? "parcial" : "errada";
-          const cor = status === "certa" ? "border-accent/40" : status === "errada" ? "border-danger/40" : "border-line-strong";
+          const cor = status === "certa" ? "border-ok/40" : status === "errada" ? "border-danger/40" : "border-line-strong";
           const selo = status === "certa" ? "badge-ok" : status === "errada" ? "badge-danger" : status === "parcial" ? "badge-warn" : "badge-neutral";
           return (
             <li key={q.id} className={`card p-5 ${cor}`}>
@@ -132,10 +132,10 @@ async function Conteudo({ params }: { params: PageProps<"/aluno/atividades/[id]"
                 <ul className="mt-4 space-y-1.5 text-sm">
                   {alts.map((a, j) => {
                     const escolhida = a.id === r?.alternativa_id;
-                    const tom = a.correta ? "bg-accent-soft text-accent-soft-ink" : escolhida ? "bg-danger-soft text-danger" : "text-muted";
+                    const tom = a.correta ? "bg-ok-soft text-ok-ink" : escolhida ? "bg-danger-soft text-danger" : "text-muted";
                     return (
                       <li key={a.id} className={`flex items-start gap-3 rounded-lg px-3 py-2 ${tom}`}>
-                        <span className="w-4 shrink-0 font-medium">{LETRAS[j]}</span>
+                        <span className={`bolha ${escolhida ? "bolha-cheia" : ""}`}>{LETRAS[j]}</span>
                         <span className="flex-1">{a.texto}</span>
                         {escolhida && <span className="shrink-0 text-xs font-medium">sua resposta</span>}
                         {a.correta && <IconeCheck className="mt-0.5" aria-label="resposta correta" />}
@@ -163,11 +163,10 @@ async function Conteudo({ params }: { params: PageProps<"/aluno/atividades/[id]"
 
               {item?.explicacao && <p className="mt-4 max-w-prose text-sm">{item.explicacao}</p>}
               {item?.revisar && (
-                <p className="mt-3 flex items-start gap-2 rounded-lg bg-sunken p-3 text-xs text-muted">
+                <p className="mt-3 flex items-start gap-2 rounded-lg bg-sunken p-3 text-xs leading-[1.95] text-muted">
                   <IconeLivro className="mt-0.5 text-base" />
                   <span>
-                    <strong className="text-ink">Revise no material, p. {item.revisar.pagina}:</strong> {item.revisar.trecho}
-                    {item.revisar.trecho && item.revisar.trecho.length >= 280 ? "…" : ""}
+                    <strong className="text-ink">Revise no material, p. {item.revisar.pagina}:</strong> <span className="grifo">{item.revisar.trecho}{item.revisar.trecho && item.revisar.trecho.length >= 280 ? "…" : ""}</span>
                   </span>
                 </p>
               )}

@@ -37,7 +37,7 @@ async function Conteudo() {
     <>
       <header className="mb-8 flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Olá, {profile.nome}</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Olá, {profile.nome}</h1>
           <p className="text-sm text-muted">Turma {turma?.nome}</p>
         </div>
         <form action={sair}>

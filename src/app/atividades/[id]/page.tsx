@@ -49,7 +49,7 @@ async function Conteudo({ params }: { params: PageProps<"/atividades/[id]">["par
     <div className="mt-4 max-w-3xl space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{atividade.titulo}</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{atividade.titulo}</h1>
           <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">
             <span className={`badge ${rascunho ? "badge-neutral" : "badge-ok"}`}>
               {rascunho ? "rascunho" : "publicada"}
@@ -145,8 +145,8 @@ async function Conteudo({ params }: { params: PageProps<"/atividades/[id]">["par
                   {q.tipo === "multipla_escolha" ? (
                     <ul className="space-y-1">
                       {alts.map((a, j) => (
-                        <li key={a.id} className={`flex items-start gap-2 rounded-lg px-3 py-1.5 ${a.correta ? "bg-accent-soft text-accent-soft-ink" : ""}`}>
-                          <span className="w-4 shrink-0 font-medium">{LETRAS[j]}</span>
+                        <li key={a.id} className={`flex items-start gap-2 rounded-lg px-3 py-1.5 ${a.correta ? "bg-ok-soft text-ok-ink" : ""}`}>
+                          <span className="bolha">{LETRAS[j]}</span>
                           <span className="flex-1">
                             {a.texto}
                             {!a.correta && a.equivoco && <span className="mt-0.5 block text-xs text-muted">Equívoco: {a.equivoco}</span>}

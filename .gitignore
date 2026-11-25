@@ -45,5 +45,10 @@ next-env.d.ts
 .vercel
 .env*
 
-# Capturas do skill impeccable
-.impeccable/
+# Impeccable: versione PRODUCT.md, DESIGN.md e .impeccable/surfaces; ignore o que é temporário
+.impeccable/shots/
+.impeccable/review/
+.impeccable/mocks/
+.impeccable/critique/
+.impeccable/questions/
+.impeccable/config.local.json

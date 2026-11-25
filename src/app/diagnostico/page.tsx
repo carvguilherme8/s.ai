@@ -4,6 +4,7 @@ import { connection } from "next/server";
 import { getProfessorAtual } from "@/lib/usuario-atual";
 import { diagnosticosDoProfessor, lacunasDaTurma, LIMIAR_LACUNA, MIN_QUESTOES } from "@/lib/diagnostico";
 import type { ResumoDiagnostico } from "@/lib/diagnostico-ia";
+import { Bolinhas } from "../bolinhas";
 import { IconeLacuna } from "../icones";
 import { BotaoResumo } from "./botao-resumo";
 
@@ -21,7 +22,7 @@ function corCelula(d: number) {
 export default function DiagnosticoPage({ searchParams }: PageProps<"/diagnostico">) {
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-10">
-      <h1 className="text-2xl font-semibold tracking-tight">Diagnóstico da turma</h1>
+      <h1 className="text-3xl font-bold tracking-tight">Diagnóstico da turma</h1>
       <p className="mt-1 text-sm text-muted">
         Onde a turma está travando e o que revisar. Lacuna = domínio abaixo de {pct(LIMIAR_LACUNA)} em um tópico com
         pelo menos {MIN_QUESTOES} questões respondidas.
@@ -68,7 +69,7 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
             key={t.turma.id}
             href={`/diagnostico?turma=${t.turma.id}`}
             aria-current={t.turma.id === d.turma.id ? "page" : undefined}
-            className={`rounded-full border px-4 py-1.5 text-sm transition-colors ${t.turma.id === d.turma.id ? "border-accent bg-accent font-medium text-accent-ink" : "border-line-strong bg-surface hover:bg-sunken"}`}
+            className={`rounded-full border px-4 py-1.5 text-sm transition-colors ${t.turma.id === d.turma.id ? "border-ink bg-hl font-semibold text-hl-ink" : "border-line-strong bg-surface hover:bg-sunken"}`}
           >
             {t.turma.nome}
           </Link>
@@ -80,7 +81,7 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
 
       {/* Onde a turma está travando */}
       <section aria-labelledby="h-lacunas">
-        <h2 id="h-lacunas" className="mb-3 text-lg font-semibold">Onde a {d.turma.nome} está travando</h2>
+        <h2 id="h-lacunas" className="mb-3 text-xl font-bold">Onde a {d.turma.nome} está travando</h2>
         {lacunas.length === 0 ? (
           <p className="rounded-xl bg-sunken p-4 text-sm">
             Nenhum tópico abaixo de {pct(LIMIAR_LACUNA)}. A turma está bem nos conteúdos avaliados.
@@ -92,10 +93,11 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
               return (
                 <li key={l.id} className="rounded-xl border border-danger/40 bg-surface p-4">
                   <div className="flex items-baseline justify-between gap-3">
-                    <h3 className="flex items-center gap-2 font-medium"><IconeLacuna className="text-danger" />{l.nome}</h3>
-                    <span className="text-2xl font-semibold tabular-nums">{pct(l.dominio ?? 0)}</span>
+                    <h3 className="font-display text-lg leading-snug font-semibold"><span className="grifo">{l.nome}</span></h3>
+                    <span className="font-display text-2xl leading-none font-bold text-danger tabular-nums">{pct(l.dominio ?? 0)}</span>
                   </div>
-                  <p className="mt-1 text-sm text-muted">
+                  <Bolinhas valor={l.dominio ?? 0} className="mt-3 text-danger" />
+                  <p className="mt-2 text-sm text-muted">
                     {alunosEmLacuna(l.id)} de {l.alunosComDados} alunos abaixo da meta
                     {l.paginas.length > 0 && ` · revisar: p. ${l.paginas.join(", ")} do material`}
                   </p>
@@ -115,7 +117,7 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
 
       {/* Resumo IA */}
       <section aria-labelledby="h-resumo" className="rounded-xl bg-sunken p-5">
-        <h2 id="h-resumo" className="mb-2 text-lg font-semibold">Resumo da IA</h2>
+        <h2 id="h-resumo" className="mb-2 text-xl font-bold">Resumo da IA</h2>
         {resumo ? (
           <div className="space-y-3 text-sm">
             <p>{resumo.resumo}</p>
@@ -145,7 +147,7 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
 
       {/* Mapa de calor */}
       <section aria-labelledby="h-mapa">
-        <h2 id="h-mapa" className="mb-1 text-lg font-semibold">Mapa de domínio — tópico × aluno</h2>
+        <h2 id="h-mapa" className="mb-1 text-xl font-bold">Mapa de domínio — tópico × aluno</h2>
         <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
           <span>Alunos com menor domínio primeiro.</span>
           <span className="flex items-center gap-1.5" aria-label="Legenda de cores">
@@ -221,7 +223,7 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
       {/* Comparação entre turmas */}
       {comDados.length > 1 && (
         <section aria-labelledby="h-comp">
-          <h2 id="h-comp" className="mb-3 text-lg font-semibold">Comparação entre turmas</h2>
+          <h2 id="h-comp" className="mb-3 text-xl font-bold">Comparação entre turmas</h2>
           <div className="card overflow-x-auto">
             <table className="w-full border-separate border-spacing-0.5 text-sm">
               <thead>
@@ -258,7 +260,7 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
       {/* Equívocos */}
       {d.equivocos.length > 0 && (
         <section aria-labelledby="h-eq">
-          <h2 id="h-eq" className="mb-3 text-lg font-semibold">Equívocos mais frequentes</h2>
+          <h2 id="h-eq" className="mb-3 text-xl font-bold">Equívocos mais frequentes</h2>
           <ol className="space-y-1.5 text-sm">
             {d.equivocos.slice(0, 6).map((e, i) => (
               <li key={`${e.topicoId}-${e.equivoco}`} className="flex items-baseline gap-3">

@@ -28,9 +28,9 @@ export function FormResponder({ atividadeId, questoes }: { atividadeId: string; 
             {q.tipo === "multipla_escolha" ? (
               <div className="mt-4 space-y-2" role="radiogroup" aria-label={`Questão ${i + 1}`}>
                 {q.alternativas.map((a, j) => (
-                  <label key={a.id} className="flex cursor-pointer items-start gap-3 rounded-lg border border-line px-3 py-2.5 text-sm transition-colors hover:bg-sunken has-checked:border-accent has-checked:bg-accent-soft">
-                    <input type="radio" name={`q_${q.questao_id}`} value={a.id} required className="mt-1" />
-                    <span className="w-4 shrink-0 font-medium">{LETRAS[j]}</span>
+                  <label key={a.id} className="flex cursor-pointer items-start gap-3 rounded-lg border border-line px-3 py-2.5 text-sm transition-colors hover:bg-sunken has-checked:border-ink has-checked:bg-warn-soft">
+                    <input type="radio" name={`q_${q.questao_id}`} value={a.id} required className="mt-0.5" />
+                    <span className="w-4 shrink-0 font-semibold">{LETRAS[j]}</span>
                     <span className="flex-1">{a.texto}</span>
                   </label>
                 ))}

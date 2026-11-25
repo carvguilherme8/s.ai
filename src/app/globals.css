@@ -1,31 +1,40 @@
 @import "tailwindcss";
 
 /* ---------------------------------------------------------------------------
-   Tokens. Papel quente, tinta escura e um único acento verde-azulado.
-   O vermelho/azul do mapa de calor (--hm-*) é semântico e fica à parte.
+   Identidade s.ai: uma folha em que a professora grifa o que importa.
+   Papel quente, tinta quase preta, marca-texto amarelo (cor de marca e gesto de
+   assinatura), azul de caneta para links e foco, vermelho de correção para lacuna.
    --------------------------------------------------------------------------- */
 :root {
-  --bg: #f8f7f4;
-  --surface: #ffffff;
-  --sunken: #f0eee9;
-  --line: #e6e3dc;
-  --line-strong: #cdc9bf;
-  --ink: #1b1a17;
-  --muted: #66625a;
-  --accent: #0f6b5c;
-  --accent-hover: #0b5a4d;
-  --accent-ink: #ffffff;
-  --accent-soft: #e1f0ec;
-  --accent-soft-ink: #0b4f44;
-  --warn-soft: #fbf0d6;
-  --warn-soft-ink: #6b4a06;
-  --danger: #b42318;
-  --danger-soft: #fbe9e7;
+  --bg: #fbf9f1; /* papel */
+  --surface: #fffefa; /* folha */
+  --sunken: #f3efe1;
+  --line: #e5dfcc;
+  --line-strong: #857f6d; /* bordas de controles (>= 3:1) */
+  --ink: #16181d; /* tinta */
+  --muted: #5d5b52;
+
+  --hl: #ffe14d; /* marca-texto */
+  --hl-hover: #ffd51a;
+  --hl-ink: #16181d; /* texto sobre o amarelo: sempre tinta */
+  --link: #1f3fbf; /* caneta azul */
+  --focus: #1f3fbf;
+
+  --ok: #1d7a4a; /* visto */
+  --ok-soft: #e1f1e6;
+  --ok-ink: #14532f;
+  --danger: #b92c1a; /* caneta de correção */
+  --danger-soft: #fbe6e1;
+  --warn-soft: #fff1b8;
+  --warn-ink: #5c4600;
+
+  --bar: #16181d; /* cabeçalho */
+  --bar-ink: #fbf9f1;
 
   /* Mapa de calor do Diagnóstico: divergente em torno da meta de 60% (cinza = limite). */
-  --hm-neutro: #ebe9e3;
-  --hm-baixo: #d03b3b;
-  --hm-alto: #2d6fb7;
+  --hm-neutro: #ece8d8;
+  --hm-baixo: #c8321f;
+  --hm-alto: #1f3fbf;
 
   --background: var(--bg);
   --foreground: var(--ink);
@@ -33,26 +42,32 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #121211;
-    --surface: #1a1a18;
-    --sunken: #232320;
-    --line: #2f2e2a;
-    --line-strong: #47453f;
-    --ink: #ecebe6;
-    --muted: #a5a299;
-    --accent: #4cc2ab;
-    --accent-hover: #6fd3be;
-    --accent-ink: #06241e;
-    --accent-soft: #14302a;
-    --accent-soft-ink: #9be0d0;
-    --warn-soft: #3a2f10;
-    --warn-soft-ink: #f2d48a;
-    --danger: #f08a80;
-    --danger-soft: #3a1a17;
+    --bg: #14161b;
+    --surface: #1b1e24;
+    --sunken: #232730;
+    --line: #2c303a;
+    --line-strong: #7a8090;
+    --ink: #eeeadb;
+    --muted: #a8a698;
 
-    --hm-neutro: #383835;
+    --hl-hover: #ffd51a;
+    --link: #93a8ff;
+    --focus: #93a8ff;
+
+    --ok: #5cc58a;
+    --ok-soft: #16301f;
+    --ok-ink: #9be3b9;
+    --danger: #ff7a66;
+    --danger-soft: #3a1a17;
+    --warn-soft: #3d3410;
+    --warn-ink: #ffe07a;
+
+    --bar: #0c0d10;
+    --bar-ink: #eeeadb;
+
+    --hm-neutro: #383a40;
     --hm-baixo: #e0605a;
-    --hm-alto: #4a90d9;
+    --hm-alto: #6f8cf0;
   }
 }
 
@@ -65,17 +80,21 @@
   --color-line-strong: var(--line-strong);
   --color-ink: var(--ink);
   --color-muted: var(--muted);
-  --color-accent: var(--accent);
-  --color-accent-hover: var(--accent-hover);
-  --color-accent-ink: var(--accent-ink);
-  --color-accent-soft: var(--accent-soft);
-  --color-accent-soft-ink: var(--accent-soft-ink);
-  --color-warn-soft: var(--warn-soft);
-  --color-warn-soft-ink: var(--warn-soft-ink);
+  --color-hl: var(--hl);
+  --color-hl-ink: var(--hl-ink);
+  --color-link: var(--link);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-ok-ink: var(--ok-ink);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
+  --color-warn-soft: var(--warn-soft);
+  --color-warn-ink: var(--warn-ink);
+  --color-bar: var(--bar);
+  --color-bar-ink: var(--bar-ink);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-bricolage);
 }
 
 /* ---------------------------------------------------------------------------
@@ -98,8 +117,9 @@ body {
 h1,
 h2,
 h3 {
+  font-family: var(--font-display), var(--font-sans), system-ui, sans-serif;
   text-wrap: balance;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.02em;
 }
 
 p,
@@ -109,12 +129,12 @@ li {
 
 /* Partes do navegador que não desenhamos: seleção, foco, caret, barras de rolagem. */
 ::selection {
-  background: var(--accent);
-  color: var(--accent-ink);
+  background: var(--hl);
+  color: var(--hl-ink);
 }
 
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -122,8 +142,8 @@ li {
 input,
 textarea,
 select {
-  caret-color: var(--accent);
-  accent-color: var(--accent);
+  caret-color: var(--focus);
+  accent-color: var(--ink);
 }
 
 a {
@@ -148,12 +168,37 @@ table {
   }
 }
 
+
 /* ---------------------------------------------------------------------------
    Componentes
    --------------------------------------------------------------------------- */
 @layer components {
+  /* ---------------------------------------------------------------------------
+     O gesto de assinatura: o grifo de marca-texto.
+     Uma passada irregular de caneta amarela, que acompanha o texto quebrado em
+     várias linhas. Use só onde há algo a revisar ou fazer.
+     --------------------------------------------------------------------------- */
+  .grifo {
+    background: linear-gradient(101deg, transparent 0.5%, var(--hl) 2.2%, var(--hl) 96.5%, transparent 99.5%);
+    color: var(--hl-ink);
+    padding: 0.04em 0.3em;
+    margin: 0 -0.15em;
+    border-radius: 0.25em 0.4em 0.3em 0.45em;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+
+  /* Versão discreta: só o terço de baixo, como um texto sublinhado a marca-texto. */
+  .grifo-base {
+    background: linear-gradient(transparent 58%, var(--hl) 58%, var(--hl) 92%, transparent 92%);
+    color: inherit;
+    padding: 0 0.1em;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+
   .btn {
-    @apply inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium whitespace-nowrap select-none;
+    @apply inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold whitespace-nowrap select-none;
     transition: background-color 0.15s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.15s cubic-bezier(0.22, 1, 0.36, 1),
       color 0.15s cubic-bezier(0.22, 1, 0.36, 1), transform 0.15s cubic-bezier(0.22, 1, 0.36, 1);
   }
@@ -164,10 +209,10 @@ table {
     @apply cursor-not-allowed opacity-50;
   }
   .btn-primary {
-    @apply bg-accent text-accent-ink;
+    @apply border border-ink bg-hl text-hl-ink;
   }
   .btn-primary:hover:not(:disabled) {
-    background: var(--accent-hover);
+    background: var(--hl-hover);
   }
   .btn-secondary {
     @apply border border-line-strong bg-surface text-ink;
@@ -193,9 +238,9 @@ table {
     color: var(--muted);
   }
   .field:focus-visible {
-    border-color: var(--accent);
+    border-color: var(--focus);
     outline: none;
-    box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 25%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--focus) 25%, transparent);
   }
 
   .card {
@@ -209,17 +254,57 @@ table {
     @apply bg-sunken text-muted;
   }
   .badge-ok {
-    @apply bg-accent-soft text-accent-soft-ink;
+    @apply bg-ok-soft text-ok-ink;
   }
   .badge-warn {
-    @apply bg-warn-soft text-warn-soft-ink;
+    @apply bg-warn-soft text-warn-ink;
   }
-}
-
-@layer components {
   .badge-danger {
     @apply bg-danger-soft text-danger;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   Cartão-resposta: as bolinhas do ENEM, só onde há dado ou escolha.
+   --------------------------------------------------------------------------- */
+input[type="radio"] {
+  appearance: none;
+  display: inline-block;
+  flex-shrink: 0;
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid var(--ink);
+  border-radius: 9999px;
+  background: transparent;
+  cursor: pointer;
+  transition: background-color 0.12s cubic-bezier(0.22, 1, 0.36, 1);
+}
+input[type="radio"]:checked {
+  background: var(--ink); /* preenchida, como a lápis */
+}
+input[type="radio"]:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 9999px;
+}
+
+.bolha {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 1.5px solid currentColor;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+}
+.bolha-cheia {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg);
 }
 
 /* Seletor de arquivo: o botão nativo segue o sistema de botões. */
@@ -236,7 +321,7 @@ input[type="file"]::file-selector-button {
   color: var(--ink);
   padding: 0.375rem 0.75rem;
   font: inherit;
-  font-weight: 500;
+  font-weight: 600;
   transition: background-color 0.15s cubic-bezier(0.22, 1, 0.36, 1);
 }
 input[type="file"]::file-selector-button:hover {

@@ -25,7 +25,7 @@ export function CopiarCodigo({ codigo }: { codigo: string }) {
       className="btn btn-secondary btn-sm font-mono tracking-wider"
     >
       {codigo}
-      {copiado ? <IconeCheck className="text-accent" /> : <IconeCopiar className="text-muted" />}
+      {copiado ? <IconeCheck className="text-ok" /> : <IconeCopiar className="text-muted" />}
       <span role="status" className="sr-only">{copiado ? "Código copiado" : ""}</span>
     </button>
   );

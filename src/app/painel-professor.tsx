@@ -3,7 +3,8 @@ import { connection } from "next/server";
 import { getProfessorAtual } from "@/lib/usuario-atual";
 import { diagnosticosDoProfessor, lacunasDaTurma } from "@/lib/diagnostico";
 import { CopiarCodigo } from "./copiar-codigo";
-import { IconeLacuna, IconeSeta } from "./icones";
+import { Bolinhas } from "./bolinhas";
+import { IconeSeta } from "./icones";
 
 const pct = (d: number | null) => `${Math.round((d ?? 0) * 100)}%`;
 
@@ -34,9 +35,9 @@ export async function PainelProfessor() {
   return (
     <div className="space-y-12">
       <header>
-        <h1 className="text-3xl font-semibold tracking-tight">Olá, {professor.nome}</h1>
-        <p className="mt-1.5 max-w-prose text-muted">
-          Descubra em segundos onde sua turma está travando — e o que revisar.
+        <h1 className="text-4xl font-bold tracking-tight">Olá, {professor.nome}</h1>
+        <p className="mt-2 max-w-prose text-lg text-muted">
+          Descubra em segundos <span className="grifo text-hl-ink">onde sua turma está travando</span> — e o que revisar.
         </p>
         <div className="mt-5 flex flex-wrap items-center gap-2">
           <Link href="/diagnostico" className="btn btn-primary">
@@ -52,7 +53,7 @@ export async function PainelProfessor() {
       </header>
 
       <section aria-labelledby="h-turmas">
-        <h2 id="h-turmas" className="mb-4 text-lg font-semibold">Turmas</h2>
+        <h2 id="h-turmas" className="mb-4 text-xl font-bold">Turmas</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           {turmas?.map((t) => {
             const diag = diagPorTurma.get(t.id);
@@ -75,17 +76,19 @@ export async function PainelProfessor() {
                   {principal ? (
                     <Link
                       href={`/diagnostico?turma=${t.id}`}
-                      className="group flex items-start gap-3 rounded-lg bg-danger-soft p-3"
+                      className="block rounded-lg border border-line p-3.5 transition-colors hover:bg-sunken"
                     >
-                      <IconeLacuna className="mt-1 text-danger" />
-                      <span className="min-w-0 flex-1 text-sm">
-                        <span className="block text-muted">Trava em</span>
-                        <span className="block font-medium">{principal.nome}</span>
+                      <span className="flex items-start justify-between gap-3">
+                        <span className="text-lg leading-snug">
+                          <span className="text-muted">Trava em </span>
+                          <span className="font-display font-semibold"><span className="grifo">{principal.nome}</span></span>
+                        </span>
+                        <span className="font-display text-2xl leading-none font-bold text-danger tabular-nums">{pct(principal.dominio)}</span>
                       </span>
-                      <span className="text-xl leading-none font-semibold text-danger tabular-nums">{pct(principal.dominio)}</span>
+                      <Bolinhas valor={principal.dominio ?? 0} className="mt-3 text-danger" />
                     </Link>
                   ) : diag && diag.totalEntregas > 0 ? (
-                    <p className="rounded-lg bg-accent-soft p-3 text-sm text-accent-soft-ink">Sem lacunas nos tópicos avaliados.</p>
+                    <p className="rounded-lg bg-ok-soft p-3 text-sm text-ok-ink">Sem lacunas nos tópicos avaliados.</p>
                   ) : (
                     <p className="rounded-lg bg-sunken p-3 text-sm text-muted">Ainda sem entregas para diagnosticar.</p>
                   )}
@@ -111,7 +114,7 @@ export async function PainelProfessor() {
         <div>
           <div className="mb-3 flex items-baseline justify-between">
             <h2 className="text-lg font-semibold">Materiais de apoio</h2>
-            <Link href="/materiais" className="text-sm text-accent hover:underline">Gerenciar</Link>
+            <Link href="/materiais" className="text-sm font-medium text-link hover:underline">Gerenciar</Link>
           </div>
           {materiais?.length ? (
             <ul className="divide-y divide-line rounded-xl border border-line bg-surface text-sm">
@@ -131,7 +134,7 @@ export async function PainelProfessor() {
           {topicos?.length ? (
             <ul className="flex flex-wrap gap-2 text-sm">
               {topicos.slice(0, 10).map((t) => (
-                <li key={t.id} className={`badge ${t.confirmado ? "badge-ok" : "badge-neutral"}`}>{t.nome}</li>
+                <li key={t.id} className={`badge ${t.confirmado ? "badge-neutral" : "badge-warn"}`}>{t.nome}</li>
               ))}
               {topicos.length > 10 && (
                 <li className="badge badge-neutral">+{topicos.length - 10} tópicos</li>

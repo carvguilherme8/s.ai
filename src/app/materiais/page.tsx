@@ -10,7 +10,7 @@ export const metadata = { title: "Materiais — s.ai" };
 export default function MateriaisPage() {
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-10">
-      <h1 className="text-2xl font-semibold tracking-tight">Materiais de apoio</h1>
+      <h1 className="text-3xl font-bold tracking-tight">Materiais de apoio</h1>
       <p className="mt-1 max-w-prose text-muted">
         Envie um material; a IA sugere os Tópicos e você confirma os que valem.
       </p>
@@ -68,10 +68,10 @@ async function Conteudo() {
                         name="nome"
                         defaultValue={t.nome}
                         aria-label="Nome do tópico"
-                        className="min-w-48 flex-1 rounded-lg border border-transparent bg-transparent px-2 py-1.5 transition-colors hover:border-line-strong focus:border-accent focus:outline-none"
+                        className="min-w-48 flex-1 rounded-lg border border-transparent bg-transparent px-2 py-1.5 transition-colors hover:border-line-strong focus:border-link focus:outline-none"
                       />
                       <button className={`btn btn-sm ${t.confirmado ? "btn-secondary" : "btn-primary"}`} title={t.confirmado ? "Salvar o nome" : "Confirmar tópico"}>
-                        {t.confirmado ? <><IconeCheck className="text-accent" /> Confirmado</> : "Confirmar"}
+                        {t.confirmado ? <><IconeCheck className="text-ok" /> Confirmado</> : "Confirmar"}
                       </button>
                     </form>
                     <form action={removerTopico}>
