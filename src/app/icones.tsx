@@ -91,3 +91,19 @@ export const IconeMapa = (p: SVGProps<SVGSVGElement>) => (
 export const IconeMenu = (p: SVGProps<SVGSVGElement>) => (
   <Base {...p}><path d="M4 7h16M4 12h16M4 17h16" /></Base>
 );
+
+export const IconeTurmas = (p: SVGProps<SVGSVGElement>) => (
+  <Base {...p}>
+    <circle cx="9" cy="8.5" r="3" />
+    <path d="M3.5 19a5.5 5.5 0 0 1 11 0" />
+    <circle cx="16.5" cy="9.5" r="2.25" />
+    <path d="M16 14.5a4.5 4.5 0 0 1 4.5 4.5" />
+  </Base>
+);
+
+export const IconeAtualizar = (p: SVGProps<SVGSVGElement>) => (
+  <Base {...p}>
+    <path d="M20 12a8 8 0 1 1-2.35-5.65L20 8.5" />
+    <path d="M20 4v4.5h-4.5" />
+  </Base>
+);
