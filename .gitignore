@@ -44,3 +44,6 @@ next-env.d.ts
 
 .vercel
 .env*
+
+# Capturas do skill impeccable
+.impeccable/

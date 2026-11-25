@@ -4,13 +4,14 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 import { getSessao } from "@/lib/supabase/server";
 import { sair } from "../auth/actions";
+import { IconeSair } from "../icones";
 
 export const metadata = { title: "Minhas atividades — s.ai" };
 
 export default function AlunoPage() {
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-10">
-      <Suspense fallback={<p className="text-sm text-zinc-500">Carregando…</p>}>
+      <Suspense fallback={<p className="text-sm text-muted">Carregando…</p>}>
         <Conteudo />
       </Suspense>
     </main>
@@ -37,10 +38,10 @@ async function Conteudo() {
       <header className="mb-8 flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Olá, {profile.nome}</h1>
-          <p className="text-sm text-zinc-500">Turma {turma?.nome}</p>
+          <p className="text-sm text-muted">Turma {turma?.nome}</p>
         </div>
         <form action={sair}>
-          <button className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700">Sair</button>
+          <button className="btn btn-secondary btn-sm">Sair <IconeSair /></button>
         </form>
       </header>
 
@@ -53,15 +54,15 @@ async function Conteudo() {
             <li key={a.id}>
               <Link
                 href={`/aluno/atividades/${a.id}`}
-                className="flex items-center justify-between rounded-lg border border-zinc-200 px-4 py-3 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
+                className="card flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-sunken"
               >
                 <span>
                   <span className="font-medium">{a.titulo}</span>
                   {a.prazo && (
-                    <span className="ml-2 text-sm text-zinc-500">prazo {new Date(a.prazo).toLocaleDateString("pt-BR")}</span>
+                    <span className="ml-2 text-sm text-muted">prazo {new Date(a.prazo).toLocaleDateString("pt-BR")}</span>
                   )}
                 </span>
-                <span className={`rounded-full px-2 py-0.5 text-xs ${feita ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300" : encerrada ? "bg-zinc-100 text-zinc-500 dark:bg-zinc-800" : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"}`}>
+                <span className={`badge ${feita ? "badge-ok" : encerrada ? "badge-neutral" : "badge-warn"}`}>
                   {feita ? "entregue" : encerrada ? "encerrada" : "a fazer"}
                 </span>
               </Link>
@@ -69,7 +70,7 @@ async function Conteudo() {
           );
         })}
         {atividades?.length === 0 && (
-          <li className="text-sm text-zinc-500">Nenhuma atividade publicada para sua turma ainda.</li>
+          <li className="text-sm text-muted">Nenhuma atividade publicada para sua turma ainda.</li>
         )}
       </ul>
     </>

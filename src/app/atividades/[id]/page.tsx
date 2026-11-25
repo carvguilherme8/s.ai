@@ -3,19 +3,22 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { getProfessorAtual } from "@/lib/usuario-atual";
+import { IconeCheck, IconeVoltar } from "../../icones";
 import { excluirAtividade, publicarAtividade, removerQuestao, salvarQuestao } from "../actions";
 
 export const metadata = { title: "Atividade — s.ai" };
 
-const campo = "w-full rounded-md border border-zinc-300 bg-transparent px-2 py-1.5 text-sm dark:border-zinc-700";
-const botao = "rounded-md border border-zinc-300 px-3 py-1 text-sm dark:border-zinc-700";
+const campo = "field";
+const botao = "btn btn-secondary btn-sm";
 const LETRAS = "ABCDEFGH";
 
 export default function AtividadePage({ params }: PageProps<"/atividades/[id]">) {
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
-      <Link href="/atividades" className="text-sm text-zinc-500 hover:underline">← Atividades</Link>
-      <Suspense fallback={<p className="mt-8 text-sm text-zinc-500">Carregando…</p>}>
+    <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-10">
+      <Link href="/atividades" className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink">
+        <IconeVoltar /> Atividades
+      </Link>
+      <Suspense fallback={<p className="mt-8 text-sm text-muted">Carregando…</p>}>
         <Conteudo params={params} />
       </Suspense>
     </main>
@@ -43,37 +46,40 @@ async function Conteudo({ params }: { params: PageProps<"/atividades/[id]">["par
   const questoes = [...atividade.questoes].sort((a, b) => a.ordem - b.ordem);
 
   return (
-    <div className="mt-2 space-y-6">
+    <div className="mt-4 max-w-3xl space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{atividade.titulo}</h1>
-          <p className="mt-1 text-sm text-zinc-500">
-            {atividade.turma?.nome} · material: {atividade.material?.titulo ?? "—"} · {questoes.length} questões ·{" "}
-            {rascunho ? "rascunho" : `publicada${atividade.prazo ? ` (prazo ${new Date(atividade.prazo).toLocaleDateString("pt-BR")})` : ""}`}
+          <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">
+            <span className={`badge ${rascunho ? "badge-neutral" : "badge-ok"}`}>
+              {rascunho ? "rascunho" : "publicada"}
+            </span>
+            {atividade.turma?.nome} · material: {atividade.material?.titulo ?? "—"} · {questoes.length} questões
+            {!rascunho && atividade.prazo && ` · prazo ${new Date(atividade.prazo).toLocaleDateString("pt-BR")}`}
           </p>
         </div>
         {rascunho && (
           <form action={excluirAtividade}>
             <input type="hidden" name="atividade_id" value={atividade.id} />
-            <button className={`${botao} text-red-600`}>Excluir rascunho</button>
+            <button className="btn btn-danger btn-sm">Excluir rascunho</button>
           </form>
         )}
       </header>
 
       {rascunho && (
-        <form action={publicarAtividade} className="flex flex-wrap items-end gap-3 rounded-lg bg-zinc-50 p-4 dark:bg-zinc-900">
+        <form action={publicarAtividade} className="flex flex-wrap items-end gap-3 rounded-xl bg-sunken p-4">
           <input type="hidden" name="atividade_id" value={atividade.id} />
-          <label className="text-sm text-zinc-500">
+          <label className="text-sm text-muted">
             Prazo (opcional)
             <input type="date" name="prazo" className={`${campo} mt-1`} />
           </label>
           <button
             disabled={questoes.length === 0}
-            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
+            className="btn btn-primary"
           >
             Publicar para {atividade.turma?.nome}
           </button>
-          <p className="basis-full text-xs text-zinc-500">
+          <p className="basis-full text-xs text-muted">
             Revise e edite as questões abaixo (salve cada uma). Depois de publicada, a atividade não pode mais ser editada.
           </p>
         </form>
@@ -84,8 +90,8 @@ async function Conteudo({ params }: { params: PageProps<"/atividades/[id]">["par
           const alts = [...q.alternativas].sort((a, b) => a.ordem - b.ordem);
           const rubrica = (q.rubrica as { criterio: string; pontos: number }[] | null) ?? [];
           return (
-            <li key={q.id} className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
-              <p className="mb-2 text-xs text-zinc-500">
+            <li key={q.id} className="card p-5">
+              <p className="mb-2 text-xs text-muted">
                 Questão {i + 1} · {q.tipo === "multipla_escolha" ? "múltipla escolha" : "dissertativa"} · tópico:{" "}
                 {q.topico?.nome}
                 {q.trecho?.pagina ? ` · material, p. ${q.trecho.pagina}` : ""}
@@ -110,7 +116,7 @@ async function Conteudo({ params }: { params: PageProps<"/atividades/[id]">["par
                               name={`equivoco_${a.id}`}
                               defaultValue={a.equivoco ?? ""}
                               placeholder="Equívoco que este distrator representa (só nas erradas)"
-                              className={`${campo} text-zinc-500`}
+                              className={`${campo} text-muted`}
                               aria-label={`Equívoco da alternativa ${LETRAS[j]}`}
                             />
                           </div>
@@ -118,7 +124,7 @@ async function Conteudo({ params }: { params: PageProps<"/atividades/[id]">["par
                       ))}
                     </ul>
                   ) : (
-                    <label className="block text-sm text-zinc-500">
+                    <label className="block text-sm text-muted">
                       Rubrica — um critério por linha, no formato <code>critério | pontos</code>
                       <textarea
                         name="rubrica"
@@ -130,7 +136,7 @@ async function Conteudo({ params }: { params: PageProps<"/atividades/[id]">["par
                   )}
                   <div className="flex gap-2">
                     <button className={botao}>Salvar questão</button>
-                    <button formAction={removerQuestao} className={`${botao} text-red-600`}>Remover</button>
+                    <button formAction={removerQuestao} className="btn btn-danger btn-sm">Remover</button>
                   </div>
                 </form>
               ) : (
@@ -139,14 +145,18 @@ async function Conteudo({ params }: { params: PageProps<"/atividades/[id]">["par
                   {q.tipo === "multipla_escolha" ? (
                     <ul className="space-y-1">
                       {alts.map((a, j) => (
-                        <li key={a.id} className={a.correta ? "font-medium text-emerald-700 dark:text-emerald-400" : ""}>
-                          {LETRAS[j]}) {a.texto}
-                          {!a.correta && a.equivoco && <span className="ml-2 text-xs text-zinc-500">— {a.equivoco}</span>}
+                        <li key={a.id} className={`flex items-start gap-2 rounded-lg px-3 py-1.5 ${a.correta ? "bg-accent-soft text-accent-soft-ink" : ""}`}>
+                          <span className="w-4 shrink-0 font-medium">{LETRAS[j]}</span>
+                          <span className="flex-1">
+                            {a.texto}
+                            {!a.correta && a.equivoco && <span className="mt-0.5 block text-xs text-muted">Equívoco: {a.equivoco}</span>}
+                          </span>
+                          {a.correta && <IconeCheck className="mt-0.5" aria-label="alternativa correta" />}
                         </li>
                       ))}
                     </ul>
                   ) : (
-                    <ul className="list-disc pl-5 text-zinc-600 dark:text-zinc-400">
+                    <ul className="list-disc pl-5 text-muted">
                       {rubrica.map((r) => (
                         <li key={r.criterio}>{r.criterio} ({r.pontos} pts)</li>
                       ))}

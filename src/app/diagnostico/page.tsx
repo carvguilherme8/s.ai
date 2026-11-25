@@ -4,6 +4,7 @@ import { connection } from "next/server";
 import { getProfessorAtual } from "@/lib/usuario-atual";
 import { diagnosticosDoProfessor, lacunasDaTurma, LIMIAR_LACUNA, MIN_QUESTOES } from "@/lib/diagnostico";
 import type { ResumoDiagnostico } from "@/lib/diagnostico-ia";
+import { IconeLacuna } from "../icones";
 import { BotaoResumo } from "./botao-resumo";
 
 export const metadata = { title: "Diagnóstico — s.ai" };
@@ -20,13 +21,12 @@ function corCelula(d: number) {
 export default function DiagnosticoPage({ searchParams }: PageProps<"/diagnostico">) {
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-10">
-      <Link href="/" className="text-sm text-zinc-500 hover:underline">← Painel</Link>
-      <h1 className="mt-2 text-2xl font-semibold tracking-tight">Diagnóstico da turma</h1>
-      <p className="mt-1 text-sm text-zinc-500">
+      <h1 className="text-2xl font-semibold tracking-tight">Diagnóstico da turma</h1>
+      <p className="mt-1 text-sm text-muted">
         Onde a turma está travando e o que revisar. Lacuna = domínio abaixo de {pct(LIMIAR_LACUNA)} em um tópico com
         pelo menos {MIN_QUESTOES} questões respondidas.
       </p>
-      <Suspense fallback={<p className="mt-8 text-sm text-zinc-500">Calculando…</p>}>
+      <Suspense fallback={<p className="mt-8 text-sm text-muted">Calculando…</p>}>
         <Conteudo searchParams={searchParams} />
       </Suspense>
     </main>
@@ -42,7 +42,7 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
 
   if (!comDados.length) {
     return (
-      <p className="mt-8 rounded-lg border border-dashed border-zinc-300 p-6 text-sm text-zinc-500 dark:border-zinc-700">
+      <p className="mt-8 rounded-xl border border-dashed border-line-strong p-6 text-sm text-muted">
         Ainda não há entregas. Publique uma atividade e peça aos alunos que respondam, ou rode{" "}
         <code>npm run seed:diagnostico</code> para carregar dados fictícios.
       </p>
@@ -68,12 +68,12 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
             key={t.turma.id}
             href={`/diagnostico?turma=${t.turma.id}`}
             aria-current={t.turma.id === d.turma.id ? "page" : undefined}
-            className={`rounded-full border px-4 py-1.5 text-sm ${t.turma.id === d.turma.id ? "border-zinc-900 bg-zinc-900 font-medium text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900" : "border-zinc-300 dark:border-zinc-700"}`}
+            className={`rounded-full border px-4 py-1.5 text-sm transition-colors ${t.turma.id === d.turma.id ? "border-accent bg-accent font-medium text-accent-ink" : "border-line-strong bg-surface hover:bg-sunken"}`}
           >
             {t.turma.nome}
           </Link>
         ))}
-        <span className="ml-auto text-sm text-zinc-500">
+        <span className="ml-auto text-sm text-muted">
           {d.alunos.filter((a) => a.entregou).length} de {d.totalAlunos} alunos entregaram
         </span>
       </nav>
@@ -82,7 +82,7 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
       <section aria-labelledby="h-lacunas">
         <h2 id="h-lacunas" className="mb-3 text-lg font-semibold">Onde a {d.turma.nome} está travando</h2>
         {lacunas.length === 0 ? (
-          <p className="rounded-lg bg-zinc-50 p-4 text-sm dark:bg-zinc-900">
+          <p className="rounded-xl bg-sunken p-4 text-sm">
             Nenhum tópico abaixo de {pct(LIMIAR_LACUNA)}. A turma está bem nos conteúdos avaliados.
           </p>
         ) : (
@@ -90,19 +90,19 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
             {lacunas.map((l) => {
               const eqs = d.equivocos.filter((e) => e.topicoId === l.id).slice(0, 2);
               return (
-                <li key={l.id} className="rounded-lg border border-red-300 p-4 dark:border-red-900">
+                <li key={l.id} className="rounded-xl border border-danger/40 bg-surface p-4">
                   <div className="flex items-baseline justify-between gap-3">
-                    <h3 className="font-medium"><span aria-hidden>▼ </span>{l.nome}</h3>
+                    <h3 className="flex items-center gap-2 font-medium"><IconeLacuna className="text-danger" />{l.nome}</h3>
                     <span className="text-2xl font-semibold tabular-nums">{pct(l.dominio ?? 0)}</span>
                   </div>
-                  <p className="mt-1 text-sm text-zinc-500">
+                  <p className="mt-1 text-sm text-muted">
                     {alunosEmLacuna(l.id)} de {l.alunosComDados} alunos abaixo da meta
                     {l.paginas.length > 0 && ` · revisar: p. ${l.paginas.join(", ")} do material`}
                   </p>
                   {eqs.length > 0 && (
                     <ul className="mt-2 list-disc pl-5 text-sm">
                       {eqs.map((e) => (
-                        <li key={e.equivoco}>{e.equivoco} <span className="text-zinc-500">({e.vezes}×)</span></li>
+                        <li key={e.equivoco}>{e.equivoco} <span className="text-muted">({e.vezes}×)</span></li>
                       ))}
                     </ul>
                   )}
@@ -114,7 +114,7 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
       </section>
 
       {/* Resumo IA */}
-      <section aria-labelledby="h-resumo" className="rounded-lg bg-zinc-50 p-5 dark:bg-zinc-900">
+      <section aria-labelledby="h-resumo" className="rounded-xl bg-sunken p-5">
         <h2 id="h-resumo" className="mb-2 text-lg font-semibold">Resumo da IA</h2>
         {resumo ? (
           <div className="space-y-3 text-sm">
@@ -123,18 +123,18 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
               <ul className="space-y-2">
                 {resumo.focos.map((f) => (
                   <li key={f.topico}>
-                    <strong>Foque em {f.topico}:</strong> {f.porque} <em className="not-italic text-zinc-600 dark:text-zinc-400">Revise: {f.revisar}</em>
+                    <strong>Foque em {f.topico}:</strong> {f.porque} <em className="not-italic text-muted">Revise: {f.revisar}</em>
                   </li>
                 ))}
               </ul>
             )}
-            <p className="text-xs text-zinc-500">
+            <p className="text-xs text-muted">
               Gerado em {new Date(resumoRow!.gerado_em).toLocaleString("pt-BR")}
               {desatualizado && " · há entregas novas desde então"}
             </p>
           </div>
         ) : (
-          <p className="mb-1 text-sm text-zinc-500">
+          <p className="mb-1 text-sm text-muted">
             A IA transforma os números abaixo em um plano de revisão. Gerado sob demanda e guardado.
           </p>
         )}
@@ -146,7 +146,7 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
       {/* Mapa de calor */}
       <section aria-labelledby="h-mapa">
         <h2 id="h-mapa" className="mb-1 text-lg font-semibold">Mapa de domínio — tópico × aluno</h2>
-        <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-500">
+        <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
           <span>Alunos com menor domínio primeiro.</span>
           <span className="flex items-center gap-1.5" aria-label="Legenda de cores">
             0%
@@ -156,9 +156,9 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
             />
             100% <span>(meta {pct(LIMIAR_LACUNA)} no cinza)</span>
           </span>
-          <span><span aria-hidden>▼</span> lacuna · — dados insuficientes (&lt; {MIN_QUESTOES} questões)</span>
+          <span className="inline-flex items-center gap-1"><IconeLacuna className="text-danger" /> lacuna · — dados insuficientes (&lt; {MIN_QUESTOES} questões)</span>
         </div>
-        <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+        <div className="card overflow-x-auto">
           <table className="w-full border-separate border-spacing-0.5 text-sm">
             <thead>
               <tr>
@@ -174,7 +174,7 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
                 {d.topicos.map((t) => {
                   const c = d.turmaCelulas[t.id];
                   return c?.dominio == null ? (
-                    <td key={t.id} className="rounded text-center text-zinc-500">—</td>
+                    <td key={t.id} className="rounded text-center text-muted">—</td>
                   ) : (
                     <td
                       key={t.id}
@@ -182,7 +182,7 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
                       title={`${t.nome}: ${pct(c.dominio)} (média de ${c.alunosComDados} alunos)`}
                       className="rounded px-2 py-2 text-center font-semibold tabular-nums"
                     >
-                      {c.lacuna && <span aria-hidden>▼ </span>}{pct(c.dominio)}
+                      {c.lacuna && <IconeLacuna className="mr-1 inline text-[0.7em]" />}{pct(c.dominio)}
                     </td>
                   );
                 })}
@@ -191,13 +191,13 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
                 <tr key={a.id}>
                   <th scope="row" className="sticky left-0 bg-background px-3 py-1.5 text-left font-normal whitespace-nowrap">
                     {a.nome.replace(" (fictício)", "")}
-                    {!a.entregou && <span className="ml-2 text-xs text-zinc-500">sem entrega</span>}
+                    {!a.entregou && <span className="ml-2 text-xs text-muted">sem entrega</span>}
                   </th>
                   {d.topicos.map((t) => {
                     const c = a.celulas[t.id];
                     if (!c || c.dominio === null) {
                       return (
-                        <td key={t.id} title={`${t.nome}: dados insuficientes`} className="rounded border border-dashed border-zinc-300 text-center text-zinc-400 dark:border-zinc-700">—</td>
+                        <td key={t.id} title={`${t.nome}: dados insuficientes`} className="rounded border border-dashed border-line-strong text-center text-muted">—</td>
                       );
                     }
                     return (
@@ -207,7 +207,7 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
                         title={`${a.nome} · ${t.nome}: ${pct(c.dominio)} (${c.acertos} de ${c.respondidas} certas)`}
                         className="rounded px-2 py-1.5 text-center tabular-nums"
                       >
-                        {c.lacuna && <span aria-hidden>▼ </span>}{pct(c.dominio)}
+                        {c.lacuna && <IconeLacuna className="mr-1 inline text-[0.7em]" />}{pct(c.dominio)}
                       </td>
                     );
                   })}
@@ -222,7 +222,7 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
       {comDados.length > 1 && (
         <section aria-labelledby="h-comp">
           <h2 id="h-comp" className="mb-3 text-lg font-semibold">Comparação entre turmas</h2>
-          <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+          <div className="card overflow-x-auto">
             <table className="w-full border-separate border-spacing-0.5 text-sm">
               <thead>
                 <tr>
@@ -240,10 +240,10 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
                       const tp = t.topicos.find((x) => x.nome === top.nome);
                       const c = tp ? t.turmaCelulas[tp.id] : undefined;
                       return c?.dominio == null ? (
-                        <td key={t.turma.id} className="text-center text-zinc-400">—</td>
+                        <td key={t.turma.id} className="text-center text-muted">—</td>
                       ) : (
                         <td key={t.turma.id} style={{ background: corCelula(c.dominio) }} className="rounded px-3 py-1.5 text-center tabular-nums">
-                          {c.lacuna && <span aria-hidden>▼ </span>}{pct(c.dominio)}
+                          {c.lacuna && <IconeLacuna className="mr-1 inline text-[0.7em]" />}{pct(c.dominio)}
                         </td>
                       );
                     })}
@@ -262,9 +262,9 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
           <ol className="space-y-1.5 text-sm">
             {d.equivocos.slice(0, 6).map((e, i) => (
               <li key={`${e.topicoId}-${e.equivoco}`} className="flex items-baseline gap-3">
-                <span className="w-5 text-right text-zinc-400 tabular-nums">{i + 1}.</span>
-                <span className="flex-1">{e.equivoco} <span className="text-zinc-500">— {e.topico}</span></span>
-                <span className="tabular-nums text-zinc-500">{e.vezes} alunos</span>
+                <span className="w-5 text-right text-muted tabular-nums">{i + 1}.</span>
+                <span className="flex-1">{e.equivoco} <span className="text-muted">— {e.topico}</span></span>
+                <span className="tabular-nums text-muted">{e.vezes} alunos</span>
               </li>
             ))}
           </ol>

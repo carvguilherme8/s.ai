@@ -8,13 +8,12 @@ export const metadata = { title: "Atividades — s.ai" };
 
 export default function AtividadesPage() {
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
-      <Link href="/" className="text-sm text-zinc-500 hover:underline">← Painel</Link>
-      <h1 className="mt-2 text-2xl font-semibold tracking-tight">Atividades</h1>
-      <p className="mt-1 text-sm text-zinc-500">
+    <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-10">
+      <h1 className="text-2xl font-semibold tracking-tight">Atividades</h1>
+      <p className="mt-1 max-w-prose text-muted">
         A IA gera as questões a partir de um material; você revisa e só então publica para a turma.
       </p>
-      <Suspense fallback={<p className="mt-8 text-sm text-zinc-500">Carregando…</p>}>
+      <Suspense fallback={<p className="mt-8 text-sm text-muted">Carregando…</p>}>
         <Conteudo />
       </Suspense>
     </main>
@@ -35,7 +34,7 @@ async function Conteudo() {
   ]);
 
   return (
-    <div className="mt-6 space-y-8">
+    <div className="mt-8 max-w-3xl space-y-8">
       <FormGerar
         turmas={turmas ?? []}
         materiais={(materiais ?? []).map((m) => ({
@@ -47,19 +46,19 @@ async function Conteudo() {
           <li key={a.id}>
             <Link
               href={`/atividades/${a.id}`}
-              className="flex items-center justify-between rounded-lg border border-zinc-200 px-4 py-3 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
+              className="card flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-sunken"
             >
               <span>
                 <span className="font-medium">{a.titulo}</span>
-                <span className="ml-2 text-sm text-zinc-500">{a.turma?.nome} · {a.questoes.length} questões</span>
+                <span className="ml-2 text-sm text-muted">{a.turma?.nome} · {a.questoes.length} questões</span>
               </span>
-              <span className={`rounded-full px-2 py-0.5 text-xs ${a.status === "publicada" ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300" : "bg-zinc-100 dark:bg-zinc-800"}`}>
+              <span className={`badge ${a.status === "publicada" ? "badge-ok" : "badge-neutral"}`}>
                 {a.status === "publicada" ? "publicada" : "rascunho"}
               </span>
             </Link>
           </li>
         ))}
-        {atividades?.length === 0 && <li className="text-sm text-zinc-500">Nenhuma atividade ainda.</li>}
+        {atividades?.length === 0 && <li className="text-sm text-muted">Nenhuma atividade ainda.</li>}
       </ul>
     </div>
   );

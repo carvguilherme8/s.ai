@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 import { getSessao } from "@/lib/supabase/server";
 import { FormResponder, type QuestaoParaResponder } from "../../form-responder";
+import { IconeCheck, IconeLivro, IconeVoltar, IconeX } from "../../../icones";
 
 export const metadata = { title: "Atividade — s.ai" };
 
@@ -21,8 +22,10 @@ type CriterioCorrecao = { criterio: string; pontos: number; obtidos: number; com
 export default function Page({ params }: PageProps<"/aluno/atividades/[id]">) {
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-10">
-      <Link href="/aluno" className="text-sm text-zinc-500 hover:underline">← Minhas atividades</Link>
-      <Suspense fallback={<p className="mt-8 text-sm text-zinc-500">Carregando…</p>}>
+      <Link href="/aluno" className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink">
+        <IconeVoltar /> Minhas atividades
+      </Link>
+      <Suspense fallback={<p className="mt-8 text-sm text-muted">Carregando…</p>}>
         <Conteudo params={params} />
       </Suspense>
     </main>
@@ -52,13 +55,13 @@ async function Conteudo({ params }: { params: PageProps<"/aluno/atividades/[id]"
       <div className="mt-2 space-y-6">
         <header>
           <h1 className="text-2xl font-semibold tracking-tight">{atividade.titulo}</h1>
-          <p className="mt-1 text-sm text-zinc-500">
+          <p className="mt-1 text-sm text-muted">
             {questoes.length} questões
             {atividade.prazo && ` · prazo ${new Date(atividade.prazo).toLocaleDateString("pt-BR")}`}
           </p>
         </header>
         {encerrada ? (
-          <p className="rounded-lg border border-zinc-200 p-4 text-sm dark:border-zinc-800">O prazo desta atividade terminou.</p>
+          <p className="card p-4 text-sm">O prazo desta atividade terminou.</p>
         ) : (
           <FormResponder atividadeId={id} questoes={questoes} />
         )}
@@ -90,16 +93,16 @@ async function Conteudo({ params }: { params: PageProps<"/aluno/atividades/[id]"
     <div className="mt-2 space-y-6">
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">{atividade.titulo}</h1>
-        <p className="mt-1 text-sm text-zinc-500">
+        <p className="mt-1 text-sm text-muted">
           Entregue em {new Date(entrega.enviada_em).toLocaleDateString("pt-BR")} · você fez{" "}
-          <strong className="text-zinc-900 dark:text-zinc-100">{pontos.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} de {total}</strong>
+          <strong className="text-ink">{pontos.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} de {total}</strong>
         </p>
       </header>
 
       {feedback.resumo && (
-        <section className="rounded-lg bg-emerald-50 p-4 text-sm dark:bg-emerald-950/40">
-          <h2 className="mb-1 font-medium">O que revisar</h2>
-          <p>{feedback.resumo}</p>
+        <section className="rounded-xl bg-accent-soft p-5 text-accent-soft-ink">
+          <h2 className="mb-1 font-semibold">O que revisar</h2>
+          <p className="max-w-prose text-sm">{feedback.resumo}</p>
         </section>
       )}
 
@@ -111,52 +114,61 @@ async function Conteudo({ params }: { params: PageProps<"/aluno/atividades/[id]"
           const alts = [...q.alternativas].sort((a, b) => a.ordem - b.ordem);
           const correcao = r?.correcao as { criterios?: CriterioCorrecao[]; comentario?: string; pendente?: boolean } | null;
           const status = nota === null ? "em correção" : nota >= 1 ? "certa" : nota > 0 ? "parcial" : "errada";
-          const cor = status === "certa" ? "border-emerald-300 dark:border-emerald-800"
-            : status === "errada" ? "border-red-300 dark:border-red-900" : "border-amber-300 dark:border-amber-800";
+          const cor = status === "certa" ? "border-accent/40" : status === "errada" ? "border-danger/40" : "border-line-strong";
+          const selo = status === "certa" ? "badge-ok" : status === "errada" ? "badge-danger" : status === "parcial" ? "badge-warn" : "badge-neutral";
           return (
-            <li key={q.id} className={`rounded-lg border p-4 ${cor}`}>
-              <p className="mb-2 flex justify-between text-xs text-zinc-500">
-                <span>Questão {i + 1} · {q.topico?.nome}</span>
-                <span className="font-medium">{status}</span>
-              </p>
-              <p className="whitespace-pre-wrap text-sm">{q.enunciado}</p>
+            <li key={q.id} className={`card p-5 ${cor}`}>
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <p className="text-xs text-muted">Questão {i + 1} · {q.topico?.nome}</p>
+                <span className={`badge gap-1 ${selo}`}>
+                  {status === "certa" && <IconeCheck />}
+                  {status === "errada" && <IconeX />}
+                  {status}
+                </span>
+              </div>
+              <p className="text-[0.9375rem] whitespace-pre-wrap">{q.enunciado}</p>
 
               {q.tipo === "multipla_escolha" ? (
-                <ul className="mt-3 space-y-1 text-sm">
+                <ul className="mt-4 space-y-1.5 text-sm">
                   {alts.map((a, j) => {
                     const escolhida = a.id === r?.alternativa_id;
+                    const tom = a.correta ? "bg-accent-soft text-accent-soft-ink" : escolhida ? "bg-danger-soft text-danger" : "text-muted";
                     return (
-                      <li key={a.id} className={a.correta ? "font-medium text-emerald-700 dark:text-emerald-400" : escolhida ? "text-red-600" : "text-zinc-500"}>
-                        {LETRAS[j]}) {a.texto}
-                        {escolhida && " ← sua resposta"}
-                        {a.correta && " ✓"}
+                      <li key={a.id} className={`flex items-start gap-3 rounded-lg px-3 py-2 ${tom}`}>
+                        <span className="w-4 shrink-0 font-medium">{LETRAS[j]}</span>
+                        <span className="flex-1">{a.texto}</span>
+                        {escolhida && <span className="shrink-0 text-xs font-medium">sua resposta</span>}
+                        {a.correta && <IconeCheck className="mt-0.5" aria-label="resposta correta" />}
                       </li>
                     );
                   })}
                 </ul>
               ) : (
                 <div className="mt-3 space-y-2 text-sm">
-                  <p className="rounded-md bg-zinc-50 p-3 whitespace-pre-wrap dark:bg-zinc-900">{r?.texto}</p>
+                  <p className="rounded-lg bg-sunken p-3 whitespace-pre-wrap">{r?.texto}</p>
                   {correcao?.criterios && (
-                    <ul className="space-y-0.5 text-zinc-600 dark:text-zinc-400">
+                    <ul className="space-y-0.5 text-muted">
                       {correcao.criterios.map((c) => (
                         <li key={c.criterio}>
                           <strong>{c.obtidos}/{c.pontos}</strong> — {c.criterio}
-                          {c.comentario && <span className="text-zinc-500"> ({c.comentario})</span>}
+                          {c.comentario && <span className="text-muted"> ({c.comentario})</span>}
                         </li>
                       ))}
                     </ul>
                   )}
                   {correcao?.comentario && !item?.explicacao && <p>{correcao.comentario}</p>}
-                  {correcao?.pendente &&<p className="text-zinc-500">A correção desta resposta ainda não ficou pronta.</p>}
+                  {correcao?.pendente && <p className="text-muted">A correção desta resposta ainda não ficou pronta.</p>}
                 </div>
               )}
 
-              {item?.explicacao && <p className="mt-3 text-sm">{item.explicacao}</p>}
+              {item?.explicacao && <p className="mt-4 max-w-prose text-sm">{item.explicacao}</p>}
               {item?.revisar && (
-                <p className="mt-2 rounded-md bg-zinc-50 p-2 text-xs text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
-                  <strong>Revise no material, p. {item.revisar.pagina}:</strong> {item.revisar.trecho}
-                  {item.revisar.trecho && item.revisar.trecho.length >= 280 ? "…" : ""}
+                <p className="mt-3 flex items-start gap-2 rounded-lg bg-sunken p-3 text-xs text-muted">
+                  <IconeLivro className="mt-0.5 text-base" />
+                  <span>
+                    <strong className="text-ink">Revise no material, p. {item.revisar.pagina}:</strong> {item.revisar.trecho}
+                    {item.revisar.trecho && item.revisar.trecho.length >= 280 ? "…" : ""}
+                  </span>
                 </p>
               )}
             </li>
