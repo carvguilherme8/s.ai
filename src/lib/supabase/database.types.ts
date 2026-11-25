@@ -486,6 +486,16 @@ export type Database = {
         Args: { p_atividade: string }
         Returns: boolean
       }
+      buscar_trechos_similares: {
+        Args: { p_embedding: string; p_limite?: number; p_material: string }
+        Returns: {
+          conteudo: string
+          id: string
+          ordem: number
+          pagina: number | null
+          similaridade: number
+        }[]
+      }
       ja_entreguei: { Args: { p_atividade: string }; Returns: boolean }
       meu_papel: { Args: never; Returns: Database["public"]["Enums"]["papel"] }
       minha_turma: { Args: never; Returns: string }

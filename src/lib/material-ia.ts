@@ -115,7 +115,7 @@ export function dividirEmTrechos(texto: string, alvo = 1200) {
   return trechos;
 }
 
-/** Embeddings (768 dimensões) para busca por similaridade. */
+/** Embeddings (768 dimensões) dos trechos de um Material para indexação no pgvector. */
 export async function gerarEmbeddings(textos: string[]): Promise<number[][]> {
   const saida: number[][] = [];
   for (let i = 0; i < textos.length; i += 50) {
@@ -127,4 +127,18 @@ export async function gerarEmbeddings(textos: string[]): Promise<number[][]> {
     for (const e of res.embeddings ?? []) saida.push(e.values ?? []);
   }
   return saida;
+}
+
+/** Embedding (768 dimensões) de uma consulta de busca (tópico, equívoco ou questão) para RAG. */
+export async function gerarEmbeddingConsulta(consulta: string): Promise<number[]> {
+  const res = await gemini.models.embedContent({
+    model: MODELO_EMBEDDING,
+    contents: consulta.slice(0, 8_000),
+    config: { outputDimensionality: EMBEDDING_DIM, taskType: "RETRIEVAL_QUERY" },
+  });
+  const vetor = res.embeddings?.[0]?.values ?? [];
+  if (vetor.length !== EMBEDDING_DIM) {
+    throw new Error(`Embedding de consulta inválido (${vetor.length} dimensões).`);
+  }
+  return vetor;
 }

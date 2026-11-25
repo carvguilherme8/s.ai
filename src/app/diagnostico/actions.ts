@@ -8,6 +8,7 @@ import { diagnosticosDoProfessor } from "@/lib/diagnostico";
 import { gerarResumoIA } from "@/lib/diagnostico-ia";
 import { gerarQuestoesDoTopico } from "@/lib/questoes-ia";
 import { corrigirDissertativa, type Rubrica } from "@/lib/correcao-ia";
+import { formatarTrechosParaPrompt, recuperarTrechosRelevantes } from "@/lib/rag";
 import { salvarAtividadeGerada } from "@/lib/salvar-atividade";
 import type { Json } from "@/lib/supabase/database.types";
 
@@ -75,10 +76,18 @@ export async function gerarReforco(_: EstadoResumo, formData: FormData): Promise
   if (topico.material_id && !trechos.length) return { erro: "O material deste tópico não tem trechos indexados." };
 
   const foco = diag.equivocos.filter((e) => e.topicoId === topicoId).slice(0, 3).map((e) => e.equivoco);
+  const relevantes = topico.material_id
+    ? await recuperarTrechosRelevantes(
+        supabase,
+        topico.material_id,
+        `${topico.nome}${topico.descricao ? `: ${topico.descricao}` : ""}${foco.length ? ` Equívocos da turma: ${foco.join("; ")}` : ""}`,
+        { limite: 6, fallback: trechos },
+      )
+    : [];
 
   let geradas;
   try {
-    geradas = await gerarQuestoesDoTopico(topico, trechos, QUESTOES_REFORCO, 0, foco);
+    geradas = await gerarQuestoesDoTopico(topico, relevantes, QUESTOES_REFORCO, 0, foco);
   } catch (e) {
     console.error("gerarReforco:", e);
     return { erro: "A IA não respondeu agora (cota ou rede). Tente de novo em instantes." };
@@ -102,7 +111,7 @@ async function respostaDaProfessora(respostaId: string, professorId: string) {
   const { supabase } = await getProfessorAtual();
   const { data } = await supabase
     .from("respostas")
-    .select("id, texto, entrega:entregas(aluno_id, atividade:atividades(professor_id)), questao:questoes(enunciado, rubrica, trecho:material_trechos(conteudo))")
+    .select("id, texto, entrega:entregas(aluno_id, atividade:atividades(professor_id, material_id)), questao:questoes(enunciado, rubrica, topico:topicos(nome), trecho:material_trechos(conteudo))")
     .eq("id", respostaId)
     .maybeSingle();
   if (!data || data.entrega?.atividade?.professor_id !== professorId) return null;
@@ -137,7 +146,18 @@ export async function corrigirPendente(_: EstadoResumo, formData: FormData): Pro
   const q = alvo.resposta.questao;
   if (!q?.rubrica || !alvo.resposta.texto) return { erro: "Esta resposta não tem rubrica ou texto para corrigir." };
   try {
-    const c = await corrigirDissertativa(q.enunciado, q.rubrica as Rubrica, alvo.resposta.texto, q.trecho?.conteudo ?? "");
+    let referencia = q.trecho?.conteudo ?? "";
+    const materialId = alvo.resposta.entrega?.atividade?.material_id ?? null;
+    if (!referencia && materialId) {
+      const encontrados = await recuperarTrechosRelevantes(
+        alvo.supabase,
+        materialId,
+        `${q.topico?.nome ?? ""} ${q.enunciado}`,
+        { limite: 2 },
+      );
+      referencia = formatarTrechosParaPrompt(encontrados);
+    }
+    const c = await corrigirDissertativa(q.enunciado, q.rubrica as Rubrica, alvo.resposta.texto, referencia);
     await alvo.supabase.from("respostas").update({ nota_ia: c.nota, correcao: c as unknown as Json }).eq("id", alvo.resposta.id);
   } catch (e) {
     console.error("corrigirPendente:", e);

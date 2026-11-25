@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { getProfessorAtual } from "@/lib/usuario-atual";
 import { geminiConfigurado } from "@/lib/material-ia";
 import { gerarQuestoesDoTopico, type QuestaoGerada } from "@/lib/questoes-ia";
+import { recuperarTrechosRelevantes } from "@/lib/rag";
 import { salvarAtividadeGerada } from "@/lib/salvar-atividade";
 
 export type EstadoForm = { erro?: string } | undefined;
@@ -118,11 +119,16 @@ export async function gerarAtividade(_: EstadoForm, formData: FormData): Promise
   if (!topicos.length) return { erro: "Selecione ao menos um tópico confirmado deste material antes de gerar questões." };
   if (!trechos?.length) return { erro: "Este material não tem trechos indexados. Envie-o novamente." };
 
-  // Uma chamada por tópico, em paralelo. Dissertativas ficam nos primeiros tópicos.
+  // Uma chamada por tópico, em paralelo, recuperando via pgvector (RAG) os trechos mais relevantes para cada tópico.
   const resultados = await Promise.allSettled(
-    topicos.map((t, i) =>
-      gerarQuestoesDoTopico(t, trechos, nMC, i < nDiss ? 1 : 0),
-    ),
+    topicos.map(async (t, i) => {
+      const consulta = `${t.nome}${t.descricao ? `: ${t.descricao}` : ""}`;
+      const relevantes = await recuperarTrechosRelevantes(supabase, materialId, consulta, {
+        limite: 6,
+        fallback: trechos,
+      });
+      return gerarQuestoesDoTopico(t, relevantes, nMC, i < nDiss ? 1 : 0);
+    }),
   );
   const geradas: QuestaoGerada[] = resultados.flatMap((r) => (r.status === "fulfilled" ? r.value : []));
   resultados.forEach((r) => r.status === "rejected" && console.error("gerarQuestoes:", r.reason));

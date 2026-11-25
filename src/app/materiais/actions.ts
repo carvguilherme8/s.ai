@@ -96,21 +96,26 @@ export async function criarMaterial(_: EstadoForm, formData: FormData): Promise<
       if (erroDisc) console.error("disciplina do material:", erroDisc.message);
     }
 
-    // Trechos + embeddings para a geração de Questões e o Feedback. Falha aqui não bloqueia o fluxo.
-    try {
-      const trechos = dividirEmTrechos(texto);
-      const vetores = await gerarEmbeddings(trechos.map((t) => t.conteudo));
-      await supabase.from("material_trechos").insert(
+    // Trechos + embeddings para a geração de Questões e o Feedback (RAG).
+    // Mesmo se a API de embeddings falhar agora, os trechos são salvos e indexados sob demanda depois.
+    const trechos = dividirEmTrechos(texto);
+    if (trechos.length) {
+      let vetores: number[][] = [];
+      try {
+        vetores = await gerarEmbeddings(trechos.map((t) => t.conteudo));
+      } catch (e) {
+        console.error("Embeddings falharam (serão reindexados sob demanda):", e);
+      }
+      const { error: erroTrechos } = await supabase.from("material_trechos").insert(
         trechos.map((t, i) => ({
           material_id: id,
           ordem: i,
           pagina: t.pagina,
           conteudo: t.conteudo,
-          embedding: vetores[i] ? (JSON.stringify(vetores[i]) as unknown as string) : null,
+          embedding: vetores[i]?.length ? (JSON.stringify(vetores[i]) as unknown as string) : null,
         })),
       );
-    } catch (e) {
-      console.error("Embeddings falharam:", e);
+      if (erroTrechos) console.error("material_trechos insert:", erroTrechos.message);
     }
   } catch (e) {
     console.error("criarMaterial:", e);
