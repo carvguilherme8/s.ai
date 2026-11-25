@@ -147,7 +147,8 @@ async function Conteudo({ params }: { params: PageProps<"/aluno/atividades/[id]"
                       ))}
                     </ul>
                   )}
-                  {correcao?.pendente && <p className="text-zinc-500">A correção desta resposta ainda não ficou pronta.</p>}
+                  {correcao?.comentario && !item?.explicacao && <p>{correcao.comentario}</p>}
+                  {correcao?.pendente &&<p className="text-zinc-500">A correção desta resposta ainda não ficou pronta.</p>}
                 </div>
               )}
 
