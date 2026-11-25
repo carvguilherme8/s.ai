@@ -128,7 +128,7 @@ Papel, tinta e três canetas. O amarelo é cor de marca e não tem papel de stat
 
 **Mapa de calor.** O Diagnóstico usa uma escala divergente em torno da meta de 60% (vermelho abaixo, cinza no limite, azul acima), sempre com o número e um ícone na célula, nunca só cor.
 
-**Tema escuro.** Existe e acompanha `prefers-color-scheme`: fundo #14161b, tinta #eeeadb, amarelo inalterado com texto escuro.
+**Sempre claro.** O site não segue o modo escuro do aparelho: `color-scheme: light` e nenhuma regra `prefers-color-scheme: dark`. A cor da barra do navegador no celular é a do cabeçalho (#16181d).
 
 ## 3. Typography
 

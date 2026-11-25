@@ -72,3 +72,22 @@ export const IconeFaisca = (p: SVGProps<SVGSVGElement>) => (
     <path d="M18.5 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z" />
   </Base>
 );
+
+/** Mapa de calor: grade 3x3 de quadrados. */
+export const IconeMapa = (p: SVGProps<SVGSVGElement>) => (
+  <Base {...p}>
+    <rect x="3.5" y="3.5" width="4.5" height="4.5" rx="1" />
+    <rect x="9.75" y="3.5" width="4.5" height="4.5" rx="1" fill="currentColor" />
+    <rect x="16" y="3.5" width="4.5" height="4.5" rx="1" />
+    <rect x="3.5" y="9.75" width="4.5" height="4.5" rx="1" fill="currentColor" />
+    <rect x="9.75" y="9.75" width="4.5" height="4.5" rx="1" />
+    <rect x="16" y="9.75" width="4.5" height="4.5" rx="1" fill="currentColor" />
+    <rect x="3.5" y="16" width="4.5" height="4.5" rx="1" />
+    <rect x="9.75" y="16" width="4.5" height="4.5" rx="1" />
+    <rect x="16" y="16" width="4.5" height="4.5" rx="1" fill="currentColor" />
+  </Base>
+);
+
+export const IconeMenu = (p: SVGProps<SVGSVGElement>) => (
+  <Base {...p}><path d="M4 7h16M4 12h16M4 17h16" /></Base>
+);

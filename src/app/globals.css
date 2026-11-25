@@ -38,38 +38,11 @@
 
   --background: var(--bg);
   --foreground: var(--ink);
+
+  /* Sempre claro: o site não acompanha o modo escuro do aparelho. */
+  color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #14161b;
-    --surface: #1b1e24;
-    --sunken: #232730;
-    --line: #2c303a;
-    --line-strong: #7a8090;
-    --ink: #eeeadb;
-    --muted: #a8a698;
-
-    --hl-hover: #ffd51a;
-    --link: #93a8ff;
-    --focus: #93a8ff;
-
-    --ok: #5cc58a;
-    --ok-soft: #16301f;
-    --ok-ink: #9be3b9;
-    --danger: #ff7a66;
-    --danger-soft: #3a1a17;
-    --warn-soft: #3d3410;
-    --warn-ink: #ffe07a;
-
-    --bar: #0c0d10;
-    --bar-ink: #eeeadb;
-
-    --hm-neutro: #383a40;
-    --hm-baixo: #e0605a;
-    --hm-alto: #6f8cf0;
-  }
-}
 
 @theme inline {
   --color-background: var(--bg);
@@ -326,4 +299,36 @@ input[type="file"]::file-selector-button {
 }
 input[type="file"]::file-selector-button:hover {
   background: var(--sunken);
+}
+
+/* ---------------------------------------------------------------------------
+   Celular e toque
+   --------------------------------------------------------------------------- */
+@media (max-width: 639.98px), (pointer: coarse) {
+  /* alvos de toque confortáveis (>= 40-44px) */
+  .btn {
+    min-height: 2.75rem;
+  }
+  .btn-sm {
+    min-height: 2.5rem;
+  }
+  summary {
+    padding-block: 0.625rem;
+  }
+  input[type="file"] {
+    min-height: 2.75rem;
+  }
+  /* 16px nos campos: abaixo disso o iPhone dá zoom na página ao tocar */
+  input:not([type="radio"]):not([type="checkbox"]):not([type="file"]):not([type="hidden"]),
+  select,
+  textarea {
+    font-size: 1rem;
+  }
+}
+
+/* Nome do tópico: campo de várias linhas que cresce com o texto (nomes longos não ficam cortados). */
+.campo-nome {
+  field-sizing: content;
+  resize: none;
+  overflow: hidden;
 }

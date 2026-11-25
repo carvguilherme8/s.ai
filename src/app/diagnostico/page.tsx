@@ -55,6 +55,8 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
 
   const d = comDados.find((x) => x.turma.id === turmaParam) ?? comDados[0];
   const lacunas = lacunasDaTurma(d);
+  // No mapa, os tópicos com menor domínio vêm primeiro: a lacuna aparece sem precisar rolar (principalmente no celular).
+  const topicosMapa = [...d.topicos].sort((a, b) => (d.turmaCelulas[a.id]?.dominio ?? 2) - (d.turmaCelulas[b.id]?.dominio ?? 2));
 
   const { data: resumoRow } = await supabase
     .from("diagnostico_resumos").select("conteudo, gerado_em").eq("turma_id", d.turma.id).maybeSingle();
@@ -72,7 +74,7 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
             key={t.turma.id}
             href={`/diagnostico?turma=${t.turma.id}`}
             aria-current={t.turma.id === d.turma.id ? "page" : undefined}
-            className={`rounded-full border px-4 py-1.5 text-sm transition-colors ${t.turma.id === d.turma.id ? "border-ink bg-hl font-semibold text-hl-ink" : "border-line-strong bg-surface hover:bg-sunken"}`}
+            className={`inline-flex min-h-10 items-center rounded-full border px-4 text-sm transition-colors ${t.turma.id === d.turma.id ? "border-ink bg-hl font-semibold text-hl-ink" : "border-line-strong bg-surface hover:bg-sunken"}`}
           >
             {t.turma.nome}
           </Link>
@@ -152,7 +154,7 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
       <section aria-labelledby="h-mapa">
         <h2 id="h-mapa" className="mb-1 text-xl font-bold">Mapa de domínio — tópico × aluno</h2>
         <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
-          <span>Alunos com menor domínio primeiro.</span>
+          <span>Alunos e tópicos com menor domínio primeiro.</span>
           <span className="flex items-center gap-1.5" aria-label="Legenda de cores">
             0%
             <span
@@ -163,20 +165,22 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
           </span>
           <span className="inline-flex items-center gap-1"><IconeLacuna className="text-danger" /> lacuna · — dados insuficientes (&lt; {MIN_QUESTOES} questões)</span>
         </div>
-        <div className="card overflow-x-auto">
+        <p className="mb-2 text-xs text-muted sm:hidden">Deslize a tabela para o lado para ver os outros tópicos.</p>
+        <div className="relative">
+          <div className="card overflow-x-auto">
           <table className="w-full border-separate border-spacing-0.5 text-sm">
             <thead>
               <tr>
-                <th scope="col" className="sticky left-0 bg-background px-3 py-2 text-left font-medium">Aluno</th>
-                {d.topicos.map((t) => (
-                  <th key={t.id} scope="col" className="min-w-28 px-2 py-2 text-center text-xs font-medium">{t.nome}</th>
+                <th scope="col" className="sticky left-0 bg-background px-2 sm:px-3 py-2 text-left font-medium">Aluno</th>
+                {topicosMapa.map((t) => (
+                  <th key={t.id} scope="col" className="min-w-[4.5rem] sm:min-w-28 px-1 sm:px-2 py-2 text-center text-xs font-medium">{t.nome}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               <tr>
-                <th scope="row" className="sticky left-0 bg-background px-3 py-2 text-left font-semibold">Turma (média)</th>
-                {d.topicos.map((t) => {
+                <th scope="row" className="sticky left-0 bg-background px-2 sm:px-3 py-2 text-left font-semibold">Turma (média)</th>
+                {topicosMapa.map((t) => {
                   const c = d.turmaCelulas[t.id];
                   return c?.dominio == null ? (
                     <td key={t.id} className="rounded text-center text-muted">—</td>
@@ -185,7 +189,7 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
                       key={t.id}
                       style={{ background: corCelula(c.dominio) }}
                       title={`${t.nome}: ${pct(c.dominio)} (média de ${c.alunosComDados} alunos)`}
-                      className="rounded px-2 py-2 text-center font-semibold tabular-nums"
+                      className="rounded px-1 sm:px-2 py-2 text-center font-semibold tabular-nums"
                     >
                       {c.lacuna && <IconeLacuna className="mr-1 inline text-[0.7em]" />}{pct(c.dominio)}
                     </td>
@@ -194,11 +198,11 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
               </tr>
               {d.alunos.map((a) => (
                 <tr key={a.id}>
-                  <th scope="row" className="sticky left-0 bg-background px-3 py-1.5 text-left font-normal whitespace-nowrap">
+                  <th scope="row" className="sticky left-0 bg-background px-2 sm:px-3 py-1.5 text-left font-normal whitespace-nowrap">
                     {a.nome.replace(" (fictício)", "")}
                     {!a.entregou && <span className="ml-2 text-xs text-muted">sem entrega</span>}
                   </th>
-                  {d.topicos.map((t) => {
+                  {topicosMapa.map((t) => {
                     const c = a.celulas[t.id];
                     if (!c || c.dominio === null) {
                       return (
@@ -210,7 +214,7 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
                         key={t.id}
                         style={{ background: corCelula(c.dominio) }}
                         title={`${a.nome} · ${t.nome}: ${pct(c.dominio)} (${c.acertos} de ${c.respondidas} certas)`}
-                        className="rounded px-2 py-1.5 text-center tabular-nums"
+                        className="rounded px-1 sm:px-2 py-1.5 text-center tabular-nums"
                       >
                         {c.lacuna && <IconeLacuna className="mr-1 inline text-[0.7em]" />}{pct(c.dominio)}
                       </td>
@@ -220,6 +224,8 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
               ))}
             </tbody>
           </table>
+        </div>
+          <div aria-hidden className="pointer-events-none absolute inset-y-px right-px w-8 rounded-r-xl bg-gradient-to-l from-surface to-transparent sm:hidden" />
         </div>
       </section>
 

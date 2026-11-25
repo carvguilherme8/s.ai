@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Geist, Geist_Mono } from "next/font/google";
 import { Suspense } from "react";
 import "./globals.css";
@@ -23,6 +23,9 @@ export const metadata: Metadata = {
   title: "s.ai",
   description: "Descubra onde sua turma está travando e o que revisar.",
 };
+
+// Sempre claro; a cor da barra do navegador no celular combina com o cabeçalho.
+export const viewport: Viewport = { colorScheme: "light", themeColor: "#16181d" };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (

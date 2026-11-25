@@ -26,7 +26,7 @@ export function FormMaterial({ turmas }: { turmas: { id: string; nome: string }[
         </label>
         <button
           disabled={pendente}
-          className="btn btn-primary ml-auto"
+          className="btn btn-primary w-full sm:ml-auto sm:w-auto"
         >
           {pendente ? "Processando…" : "Enviar e extrair tópicos"}
         </button>

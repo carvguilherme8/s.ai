@@ -46,7 +46,7 @@ async function Conteudo() {
           const pendentes = m.topicos.filter((t) => !t.confirmado).length;
           return (
             <li key={m.id} className="card p-4">
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
                 <div>
                   <span className="font-medium">{m.titulo}</span>
                   <span className="ml-2 text-sm text-muted">{m.tipo === "pdf" ? "PDF" : "texto"} · {m.turma?.nome}</span>
@@ -63,23 +63,24 @@ async function Conteudo() {
 
               <ul className="mt-3 space-y-2">
                 {m.topicos.map((t) => (
-                  <li key={t.id} className="flex items-start gap-2 text-sm">
-                    <form action={confirmarTopico} className="flex flex-1 flex-wrap items-start gap-2">
+                  <li key={t.id} className="flex flex-wrap items-start gap-2 text-sm">
+                    <form action={confirmarTopico} className="contents">
                       <input type="hidden" name="id" value={t.id} />
                       <input type="hidden" name="confirmado" value="true" />
-                      <input
+                      <textarea
                         name="nome"
+                        rows={1}
                         defaultValue={t.nome}
                         aria-label="Nome do tópico"
-                        className="min-w-48 flex-1 rounded-lg border border-transparent bg-transparent px-2 py-1.5 transition-colors hover:border-line-strong focus:border-link focus:outline-none"
+                        className="campo-nome w-full rounded-lg border border-transparent bg-transparent px-2 py-2 transition-colors hover:border-line-strong focus:border-link focus:outline-none sm:w-auto sm:min-w-48 sm:flex-1 sm:py-1.5"
                       />
                       <button className={`btn btn-sm ${t.confirmado ? "btn-secondary" : "btn-primary"}`} title={t.confirmado ? "Salvar o nome" : "Confirmar tópico"}>
                         {t.confirmado ? <><IconeCheck className="text-ok" /> Confirmado</> : "Confirmar"}
                       </button>
                     </form>
-                    <form action={removerTopico}>
+                    <form action={removerTopico} className="ml-auto sm:ml-0">
                       <input type="hidden" name="id" value={t.id} />
-                      <button aria-label={`Remover ${t.nome}`} className="btn btn-sm min-h-8 px-2 text-muted hover:text-danger"><IconeX /></button>
+                      <button aria-label={`Remover ${t.nome}`} className="btn btn-sm min-w-11 px-3 text-muted hover:text-danger sm:min-w-0 sm:px-2"><IconeX /></button>
                     </form>
                   </li>
                 ))}

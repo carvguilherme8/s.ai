@@ -15,7 +15,7 @@ const LETRAS = "ABCDEFGH";
 export default function AtividadePage({ params }: PageProps<"/atividades/[id]">) {
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-10">
-      <Link href="/atividades" className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink">
+      <Link href="/atividades" className="inline-flex min-h-10 items-center gap-1.5 text-sm text-muted hover:text-ink">
         <IconeVoltar /> Atividades
       </Link>
       <Suspense fallback={<p className="mt-8 text-sm text-muted">Carregando…</p>}>

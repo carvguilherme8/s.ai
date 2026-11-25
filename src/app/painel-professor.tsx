@@ -111,7 +111,7 @@ export async function PainelProfessor() {
         <div>
           <div className="mb-3 flex items-baseline justify-between">
             <h2 className="text-lg font-semibold">Materiais de apoio</h2>
-            <Link href="/materiais" className="text-sm font-medium text-link hover:underline">Gerenciar</Link>
+            <Link href="/materiais" className="-my-3 py-3 text-sm font-medium text-link hover:underline">Gerenciar</Link>
           </div>
           {materiais?.length ? (
             <ul className="divide-y divide-line rounded-xl border border-line bg-surface text-sm">

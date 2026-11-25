@@ -101,7 +101,7 @@ export async function criarMaterial(_: EstadoForm, formData: FormData): Promise<
 
 export async function confirmarTopico(formData: FormData) {
   const { supabase, professor } = await getProfessorAtual();
-  const nome = String(formData.get("nome") ?? "").trim();
+  const nome = String(formData.get("nome") ?? "").replace(/\s+/g, " ").trim();
   const update: { confirmado: boolean; nome?: string } = { confirmado: formData.get("confirmado") !== "false" };
   if (nome) update.nome = nome;
   await supabase.from("topicos").update(update)

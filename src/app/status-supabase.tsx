@@ -28,7 +28,7 @@ export async function StatusSupabase() {
 
   return (
     <details className="text-xs text-muted">
-      <summary className="flex cursor-pointer items-center gap-2">
+      <summary className="flex cursor-pointer items-center gap-2 py-2.5">
         <span aria-hidden className={`h-2 w-2 rounded-full ${erro ? "bg-danger" : "bg-ok"}`} />
         {erro ? "Supabase: falha na conexão" : `Supabase conectado · ${ms} ms`}
       </summary>
