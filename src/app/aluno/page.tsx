@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 import { getSessao } from "@/lib/supabase/server";
 import { LIMIAR_LACUNA, MIN_QUESTOES } from "@/lib/diagnostico";
+import { areaDaDisciplina, ordemDaDisciplina, SEM_DISCIPLINA } from "@/lib/disciplinas";
 import { sair } from "../auth/actions";
 import { Bolinhas } from "../bolinhas";
 import { IconeSair } from "../icones";
@@ -35,24 +36,63 @@ async function Conteudo() {
       .order("publicada_em", { ascending: false }),
     supabase.from("entregas").select("atividade_id, enviada_em"),
     // O RLS já limita às respostas deste aluno.
-    supabase.from("respostas").select("nota_ia, nota_ajustada, questao:questoes(topico:topicos(id, nome))"),
+    supabase.from("respostas").select(
+      "nota_ia, nota_ajustada, questao:questoes(trecho:material_trechos(pagina), topico:topicos(id, nome, material:materiais(id, disciplina)))",
+    ),
   ]);
   const entregues = new Set(entregas?.map((e) => e.atividade_id));
 
   // Domínio do próprio aluno por tópico (mesma regra do Diagnóstico da professora).
-  const porTopico = new Map<string, { nome: string; notas: number[] }>();
+  type TopicoAluno = {
+    nome: string;
+    disciplina: string | null;
+    materialId: string | null;
+    notas: number[];
+    paginasErradas: Map<number, number>;
+  };
+  const porTopico = new Map<string, TopicoAluno>();
   for (const r of respostas ?? []) {
     const t = r.questao?.topico;
     const nota = r.nota_ajustada ?? r.nota_ia;
     if (!t || nota === null) continue;
-    (porTopico.get(t.id) ?? porTopico.set(t.id, { nome: t.nome, notas: [] }).get(t.id)!).notas.push(Number(nota));
+    const acc =
+      porTopico.get(t.id) ??
+      porTopico
+        .set(t.id, { nome: t.nome, disciplina: t.material?.disciplina ?? null, materialId: t.material?.id ?? null, notas: [], paginasErradas: new Map() })
+        .get(t.id)!;
+    acc.notas.push(Number(nota));
+    const pagina = r.questao?.trecho?.pagina;
+    if (Number(nota) < 1 && pagina) acc.paginasErradas.set(pagina, (acc.paginasErradas.get(pagina) ?? 0) + 1);
   }
   const dominio = [...porTopico.entries()]
     .map(([id, t]) => {
       const dom = t.notas.reduce((a, b) => a + b, 0) / t.notas.length;
-      return { id, nome: t.nome, dominio: dom, respondidas: t.notas.length, acertos: t.notas.filter((n) => n >= 1).length, lacuna: t.notas.length >= MIN_QUESTOES && dom < LIMIAR_LACUNA };
+      // a página do material onde ele mais errou: é o melhor ponto de partida para revisar
+      const pagina = [...t.paginasErradas.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+      return {
+        id, nome: t.nome, disciplina: t.disciplina, materialId: t.materialId, pagina,
+        dominio: dom, respondidas: t.notas.length, acertos: t.notas.filter((n) => n >= 1).length,
+        lacuna: t.notas.length >= MIN_QUESTOES && dom < LIMIAR_LACUNA,
+      };
     })
     .sort((a, b) => a.dominio - b.dominio);
+  type TopicoDominio = (typeof dominio)[number];
+
+  const linkMaterial = (t: TopicoDominio) =>
+    t.materialId ? `/aluno/materiais/${t.materialId}${t.pagina ? `?p=${t.pagina}#p${t.pagina}` : ""}` : null;
+
+  // "Revise primeiro": os 3 tópicos mais fracos entre os que estão abaixo da meta.
+  const plano = dominio.filter((t) => t.lacuna).slice(0, 3);
+
+  // Domínio agrupado por disciplina (ordem do ENEM); dentro de cada uma, o mais fraco primeiro.
+  const porDisciplina = new Map<string, TopicoDominio[]>();
+  for (const t of dominio) {
+    const chave = t.disciplina ?? SEM_DISCIPLINA;
+    (porDisciplina.get(chave) ?? porDisciplina.set(chave, []).get(chave)!).push(t);
+  }
+  const grupos = [...porDisciplina.entries()].sort(
+    ([a], [b]) => ordemDaDisciplina(a === SEM_DISCIPLINA ? null : a) - ordemDaDisciplina(b === SEM_DISCIPLINA ? null : b),
+  );
 
   return (
     <>
@@ -95,29 +135,82 @@ async function Conteudo() {
         )}
       </ul>
 
+      {plano.length > 0 && (
+        <section aria-labelledby="h-plano" className="mt-12">
+          <h2 id="h-plano" className="mb-1 font-display text-xl font-bold">Revise primeiro</h2>
+          <p className="mb-4 text-sm text-muted">Os tópicos em que você mais precisa de reforço, com o trecho do material para estudar.</p>
+          <ol className="space-y-2">
+            {plano.map((t) => {
+              const href = linkMaterial(t);
+              return (
+                <li key={t.id} className="card flex flex-wrap items-center justify-between gap-x-4 gap-y-3 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="font-medium"><span className="grifo">{t.nome}</span></p>
+                    <p className="mt-0.5 text-xs text-muted">
+                      {t.disciplina ?? SEM_DISCIPLINA} · {t.acertos} de {t.respondidas} certas · <span className="font-medium text-danger">{pct(t.dominio)}</span>
+                    </p>
+                  </div>
+                  {href && (
+                    <Link href={href} className="btn btn-secondary btn-sm">
+                      Abrir no material{t.pagina ? `, p. ${t.pagina}` : ""}
+                    </Link>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+        </section>
+      )}
+
       {dominio.length > 0 && (
         <section aria-labelledby="h-dominio" className="mt-12">
-          <h2 id="h-dominio" className="mb-1 font-display text-xl font-bold">Seu domínio por tópico</h2>
-          <p className="mb-4 text-sm text-muted">
+          <h2 id="h-dominio" className="mb-1 font-display text-xl font-bold">Seu domínio por disciplina</h2>
+          <p className="mb-5 text-sm text-muted">
             Onde você já vai bem e o que vale revisar. Abaixo de {pct(LIMIAR_LACUNA)} é o sinal para revisar.
           </p>
-          <ul className="space-y-2">
-            {dominio.map((t) => (
-              <li key={t.id} className="card flex items-center justify-between gap-4 px-4 py-3">
-                <div className="min-w-0">
-                  <p className="font-medium">{t.lacuna ? <span className="grifo">{t.nome}</span> : t.nome}</p>
-                  <p className="mt-0.5 text-xs text-muted">
-                    {t.acertos} de {t.respondidas} {t.respondidas === 1 ? "certa" : "certas"}
-                    {t.lacuna && " · vale revisar"}
-                  </p>
+          <div className="space-y-8">
+            {grupos.map(([disciplina, lista]) => {
+              const media = lista.reduce((a, t) => a + t.dominio, 0) / lista.length;
+              const area = areaDaDisciplina(disciplina === SEM_DISCIPLINA ? null : disciplina);
+              return (
+                <div key={disciplina}>
+                  <h3 className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                    <span className="font-display text-lg font-bold">
+                      {disciplina}
+                      {area && <span className="ml-2 font-sans text-xs font-normal text-muted">{area}</span>}
+                    </span>
+                    <span className="text-xs text-muted">média <span className="font-semibold tabular-nums text-ink">{pct(media)}</span></span>
+                  </h3>
+                  <ul className="space-y-2">
+                    {lista.map((t) => {
+                      const href = t.lacuna ? linkMaterial(t) : null;
+                      return (
+                        <li key={t.id} className="card flex items-center justify-between gap-4 px-4 py-3">
+                          <div className="min-w-0">
+                            <p className="font-medium">{t.lacuna ? <span className="grifo">{t.nome}</span> : t.nome}</p>
+                            <p className="mt-0.5 text-xs text-muted">
+                              {t.acertos} de {t.respondidas} {t.respondidas === 1 ? "certa" : "certas"}
+                              {t.lacuna && " · vale revisar"}
+                              {href && (
+                                <>
+                                  {" · "}
+                                  <Link href={href} className="font-medium text-link hover:underline">abrir no material</Link>
+                                </>
+                              )}
+                            </p>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <p className={`font-display text-xl font-bold tabular-nums ${t.lacuna ? "text-danger" : ""}`}>{pct(t.dominio)}</p>
+                            <Bolinhas valor={t.dominio} className={`mt-1 ${t.lacuna ? "text-danger" : "text-ok"}`} />
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
                 </div>
-                <div className="shrink-0 text-right">
-                  <p className={`font-display text-xl font-bold tabular-nums ${t.lacuna ? "text-danger" : ""}`}>{pct(t.dominio)}</p>
-                  <Bolinhas valor={t.dominio} className={`mt-1 ${t.lacuna ? "text-danger" : "text-ok"}`} />
-                </div>
-              </li>
-            ))}
-          </ul>
+              );
+            })}
+          </div>
         </section>
       )}
     </>

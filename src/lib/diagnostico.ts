@@ -24,7 +24,7 @@ export type Evolucao = {
 
 export type DiagnosticoTurma = {
   turma: { id: string; nome: string };
-  topicos: { id: string; nome: string; paginas: number[] }[];
+  topicos: { id: string; nome: string; paginas: number[]; disciplina: string | null }[];
   alunos: { id: string; nome: string; entregou: boolean; media: number | null; celulas: Record<string, Celula> }[];
   turmaCelulas: Record<string, { dominio: number | null; alunosComDados: number; lacuna: boolean }>;
   equivocos: { topicoId: string; topico: string; equivoco: string; vezes: number }[];
@@ -68,9 +68,10 @@ export async function diagnosticosDoProfessor(professorId: string): Promise<Diag
 
   const topicoIds = [...new Set((respostas ?? []).map((r) => r.questao?.topico_id).filter((x): x is string => !!x))];
   const { data: topicosDb } = topicoIds.length
-    ? await db.from("topicos").select("id, nome").in("id", topicoIds)
+    ? await db.from("topicos").select("id, nome, material:materiais(disciplina)").in("id", topicoIds)
     : { data: [] };
   const nomeTopico = new Map((topicosDb ?? []).map((t) => [t.id, t.nome]));
+  const disciplinaDoTopico = new Map((topicosDb ?? []).map((t) => [t.id, t.material?.disciplina ?? null]));
 
   const entregaPorId = new Map((entregas ?? []).map((e) => [e.id, e]));
 
@@ -159,7 +160,7 @@ export async function diagnosticosDoProfessor(professorId: string): Promise<Diag
         linhas: linhasEvolucao,
       },
       topicos: topicosDaTurma.map((id) => ({
-        id, nome: nomeTopico.get(id) ?? "—", paginas: [...(paginasPorTopico.get(id) ?? [])].sort((a, b) => a - b),
+        id, nome: nomeTopico.get(id) ?? "—", disciplina: disciplinaDoTopico.get(id) ?? null, paginas: [...(paginasPorTopico.get(id) ?? [])].sort((a, b) => a - b),
       })),
       alunos: alunosDiag.sort((a, b) => (a.media ?? 2) - (b.media ?? 2) || a.nome.localeCompare(b.nome)),
       turmaCelulas,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { NOMES_DISCIPLINAS } from "@/lib/disciplinas";
 import { criarMaterial, type EstadoForm } from "./actions";
 
 const campo = "field";
@@ -18,6 +19,15 @@ export function FormMaterial({ turmas }: { turmas: { id: string; nome: string }[
           ))}
         </select>
       </div>
+      <label className="block text-sm text-muted">
+        Disciplina
+        <select name="disciplina" defaultValue="" className={`${campo} mt-1 sm:max-w-xs`}>
+          <option value="">A IA sugere (você pode trocar depois)</option>
+          {NOMES_DISCIPLINAS.map((d) => (
+            <option key={d} value={d}>{d}</option>
+          ))}
+        </select>
+      </label>
       <textarea name="texto" rows={6} placeholder="Cole o texto do material aqui…" className={campo} />
       <div className="flex flex-wrap items-center gap-3 text-sm">
         <label className="text-muted">

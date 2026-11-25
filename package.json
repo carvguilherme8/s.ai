@@ -9,7 +9,8 @@
     "lint": "eslint",
     "seed": "node --env-file=.env.local scripts/seed.mjs",
     "seed:diagnostico": "node --env-file=.env.local scripts/seed-diagnostico.mjs",
-    "seed:reforco": "node --env-file=.env.local scripts/seed-reforco.mjs"
+    "seed:reforco": "node --env-file=.env.local scripts/seed-reforco.mjs",
+    "seed:matematica": "node --env-file=.env.local scripts/seed-matematica.mjs"
   },
   "dependencies": {
     "@google/genai": "^3.0.0",

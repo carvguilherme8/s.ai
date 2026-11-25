@@ -43,7 +43,7 @@ async function Conteudo({ params }: { params: PageProps<"/aluno/atividades/[id]"
   const { supabase } = sessao;
 
   const { data: atividade } = await supabase
-    .from("atividades").select("id, titulo, prazo").eq("id", id).eq("status", "publicada").maybeSingle();
+    .from("atividades").select("id, titulo, prazo, material_id").eq("id", id).eq("status", "publicada").maybeSingle();
   if (!atividade) notFound();
 
   const { data: entrega } = await supabase
@@ -172,6 +172,14 @@ async function Conteudo({ params }: { params: PageProps<"/aluno/atividades/[id]"
                     <strong className="text-ink">Revise no material, p. {item.revisar.pagina}:</strong> <span className="grifo">{item.revisar.trecho}{item.revisar.trecho && item.revisar.trecho.length >= 280 ? "…" : ""}</span>
                   </span>
                 </p>
+              )}
+              {item?.revisar && atividade.material_id && (
+                <Link
+                  href={`/aluno/materiais/${atividade.material_id}?p=${item.revisar.pagina}#p${item.revisar.pagina}`}
+                  className="mt-2 inline-flex min-h-10 items-center text-sm font-medium text-link hover:underline"
+                >
+                  Abrir a página {item.revisar.pagina} do material
+                </Link>
               )}
             </li>
           );

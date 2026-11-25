@@ -1,7 +1,8 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { getProfessorAtual } from "@/lib/usuario-atual";
-import { confirmarTodos, confirmarTopico, removerTopico } from "./actions";
+import { NOMES_DISCIPLINAS } from "@/lib/disciplinas";
+import { confirmarTodos, confirmarTopico, definirDisciplina, removerTopico } from "./actions";
 import { IconeCheck, IconeX } from "../icones";
 import { FormMaterial } from "./form-material";
 
@@ -32,7 +33,7 @@ async function Conteudo() {
     supabase.from("turmas").select("id, nome").eq("professor_id", professor.id).order("nome"),
     supabase
       .from("materiais")
-      .select("id, titulo, tipo, created_at, turma:turmas(nome), topicos(id, nome, descricao, confirmado)")
+      .select("id, titulo, tipo, disciplina, created_at, turma:turmas(nome), topicos(id, nome, descricao, confirmado)")
       .eq("professor_id", professor.id)
       .order("created_at", { ascending: false }),
   ]);
@@ -51,6 +52,21 @@ async function Conteudo() {
                   <span className="font-medium">{m.titulo}</span>
                   <span className="ml-2 text-sm text-muted">{m.tipo === "pdf" ? "PDF" : "texto"} · {m.turma?.nome}</span>
                 </div>
+                <form action={definirDisciplina} className="flex items-center gap-2">
+                  <input type="hidden" name="material_id" value={m.id} />
+                  <select
+                    name="disciplina"
+                    defaultValue={m.disciplina ?? ""}
+                    aria-label={`Disciplina de ${m.titulo}`}
+                    className="field w-auto py-1.5 text-[0.8125rem]"
+                  >
+                    <option value="">Sem disciplina</option>
+                    {NOMES_DISCIPLINAS.map((d) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                  <button className="btn btn-secondary btn-sm">Salvar</button>
+                </form>
                 {pendentes > 0 && (
                   <form action={confirmarTodos}>
                     <input type="hidden" name="material_id" value={m.id} />

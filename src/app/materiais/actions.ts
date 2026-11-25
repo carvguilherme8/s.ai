@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getProfessorAtual } from "@/lib/usuario-atual";
+import { disciplinaValida } from "@/lib/disciplinas";
 import {
   dividirEmTrechos,
   extrairTextoDoPdf,
@@ -21,6 +22,7 @@ export async function criarMaterial(_: EstadoForm, formData: FormData): Promise<
   const titulo = String(formData.get("titulo") ?? "").trim();
   const turmaId = String(formData.get("turma_id") ?? "");
   const textoColado = String(formData.get("texto") ?? "").trim();
+  const disciplinaEscolhida = disciplinaValida(formData.get("disciplina")); // vazio = a IA sugere
   const arquivo = formData.get("pdf");
   const pdf = arquivo instanceof File && arquivo.size > 0 ? arquivo : null;
 
@@ -65,11 +67,17 @@ export async function criarMaterial(_: EstadoForm, formData: FormData): Promise<
     if (erroMaterial) throw erroMaterial;
 
     // Tópicos sugeridos (o professor confirma depois).
-    const topicos = await extrairTopicos(titulo, texto);
+    const { disciplina: sugerida, topicos } = await extrairTopicos(titulo, texto);
     if (topicos.length) {
       await supabase.from("topicos").insert(
         topicos.map((t) => ({ professor_id: professor.id, material_id: id, nome: t.nome.trim(), descricao: t.descricao })),
       );
+    }
+    // Disciplina: a que a professora escolheu; se deixou em branco, a sugestão da IA. Falha aqui não bloqueia.
+    const disciplina = disciplinaEscolhida ?? sugerida;
+    if (disciplina) {
+      const { error: erroDisc } = await supabase.from("materiais").update({ disciplina }).eq("id", id);
+      if (erroDisc) console.error("disciplina do material:", erroDisc.message);
     }
 
     // Trechos + embeddings para a geração de Questões e o Feedback. Falha aqui não bloqueia o fluxo.
@@ -121,4 +129,14 @@ export async function removerTopico(formData: FormData) {
   await supabase.from("topicos").delete()
     .eq("id", String(formData.get("id"))).eq("professor_id", professor.id);
   revalidatePath("/materiais");
+}
+
+/** Define (ou limpa) a disciplina de um Material. Os Tópicos dele herdam. */
+export async function definirDisciplina(formData: FormData) {
+  const { supabase, professor } = await getProfessorAtual();
+  const disciplina = disciplinaValida(formData.get("disciplina")); // vazio/inválido = sem disciplina
+  await supabase.from("materiais").update({ disciplina })
+    .eq("id", String(formData.get("material_id"))).eq("professor_id", professor.id);
+  revalidatePath("/materiais");
+  revalidatePath("/diagnostico");
 }

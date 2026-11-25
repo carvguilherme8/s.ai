@@ -4,6 +4,7 @@ import { connection } from "next/server";
 import { getProfessorAtual } from "@/lib/usuario-atual";
 import { diagnosticosDoProfessor, lacunasDaTurma, LIMIAR_LACUNA, MIN_QUESTOES } from "@/lib/diagnostico";
 import type { ResumoDiagnostico } from "@/lib/diagnostico-ia";
+import { areaDaDisciplina, ordemDaDisciplina, SEM_DISCIPLINA } from "@/lib/disciplinas";
 import { Bolinhas } from "../bolinhas";
 import { IconeLacuna } from "../icones";
 import { AcoesRelatorio } from "./acoes-relatorio";
@@ -41,7 +42,7 @@ export default function DiagnosticoPage({ searchParams }: PageProps<"/diagnostic
 
 async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostico">["searchParams"] }) {
   await connection();
-  const { turma: turmaParam } = await searchParams;
+  const { turma: turmaParam, disc: discParam } = await searchParams;
   const { supabase, professor } = await getProfessorAtual();
   const todas = await diagnosticosDoProfessor(professor.id);
   const comDados = todas.filter((d) => d.totalEntregas > 0);
@@ -56,9 +57,19 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
   }
 
   const d = comDados.find((x) => x.turma.id === turmaParam) ?? comDados[0];
-  const lacunas = lacunasDaTurma(d);
+  // Filtro por disciplina (a disciplina vem do Material do tópico).
+  const disc = typeof discParam === "string" ? discParam : "";
+  const disciplinasDaTurma = [...new Set(d.topicos.map((t) => t.disciplina ?? SEM_DISCIPLINA))].sort(
+    (a, b) => ordemDaDisciplina(a === SEM_DISCIPLINA ? null : a) - ordemDaDisciplina(b === SEM_DISCIPLINA ? null : b),
+  );
+  const filtroAtivo = disc !== "" && disciplinasDaTurma.includes(disc) ? disc : "";
+  const noFiltro = (disciplina: string | null) => !filtroAtivo || (disciplina ?? SEM_DISCIPLINA) === filtroAtivo;
+  const topicosVisiveis = d.topicos.filter((t) => noFiltro(t.disciplina));
+  const idsVisiveis = new Set(topicosVisiveis.map((t) => t.id));
+
+  const lacunas = lacunasDaTurma(d).filter((l) => noFiltro(l.disciplina));
   // No mapa, os tópicos com menor domínio vêm primeiro: a lacuna aparece sem precisar rolar (principalmente no celular).
-  const topicosMapa = [...d.topicos].sort((a, b) => (d.turmaCelulas[a.id]?.dominio ?? 2) - (d.turmaCelulas[b.id]?.dominio ?? 2));
+  const topicosMapa = [...topicosVisiveis].sort((a, b) => (d.turmaCelulas[a.id]?.dominio ?? 2) - (d.turmaCelulas[b.id]?.dominio ?? 2));
 
   const { data: resumoRow } = await supabase
     .from("diagnostico_resumos").select("conteudo, gerado_em").eq("turma_id", d.turma.id).maybeSingle();
@@ -107,6 +118,27 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
         </span>
       </nav>
       <AcoesRelatorio texto={relatorio} />
+
+      {disciplinasDaTurma.length > 1 && (
+        <nav aria-label="Disciplinas" className="no-print -mt-4 flex flex-wrap items-center gap-2">
+          <span className="text-sm text-muted">Disciplina:</span>
+          {["", ...disciplinasDaTurma].map((nome) => {
+            const ativo = nome === filtroAtivo;
+            const area = areaDaDisciplina(nome === SEM_DISCIPLINA ? null : nome);
+            return (
+              <Link
+                key={nome || "todas"}
+                href={nome ? `/diagnostico?turma=${d.turma.id}&disc=${encodeURIComponent(nome)}` : `/diagnostico?turma=${d.turma.id}`}
+                aria-current={ativo ? "true" : undefined}
+                title={area ?? undefined}
+                className={`inline-flex min-h-10 items-center rounded-full border px-3.5 text-sm transition-colors ${ativo ? "border-ink bg-hl font-semibold text-hl-ink" : "border-line-strong bg-surface hover:bg-sunken"}`}
+              >
+                {nome || "Todas"}
+              </Link>
+            );
+          })}
+        </nav>
+      )}
 
       {/* Onde a turma está travando */}
       <section aria-labelledby="h-lacunas">
@@ -263,7 +295,7 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
       {/* Evolução por atividade */}
       <section aria-labelledby="h-evo">
         <h2 id="h-evo" className="mb-1 text-xl font-bold">Evolução por atividade</h2>
-        {d.evolucao.atividades.length < 2 || d.evolucao.linhas.length === 0 ? (
+        {d.evolucao.atividades.length < 2 || d.evolucao.linhas.filter((l) => idsVisiveis.has(l.topicoId)).length === 0 ? (
           <p className="rounded-xl bg-sunken p-4 text-sm text-muted">
             Aplique outra atividade, por exemplo um reforço, para acompanhar o domínio da turma ao longo do tempo.
           </p>
@@ -290,7 +322,7 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
                   </tr>
                 </thead>
                 <tbody>
-                  {d.evolucao.linhas.map((l) => {
+                  {d.evolucao.linhas.filter((l) => idsVisiveis.has(l.topicoId)).map((l) => {
                     const validos = l.valores.filter((v): v is number => v !== null);
                     const delta = validos.length >= 2 ? validos[validos.length - 1] - validos[0] : null;
                     return (

@@ -176,6 +176,7 @@ export type Database = {
         Row: {
           conteudo_texto: string | null
           created_at: string
+          disciplina: string | null
           id: string
           professor_id: string
           storage_path: string | null
@@ -186,6 +187,7 @@ export type Database = {
         Insert: {
           conteudo_texto?: string | null
           created_at?: string
+          disciplina?: string | null
           id?: string
           professor_id: string
           storage_path?: string | null
@@ -196,6 +198,7 @@ export type Database = {
         Update: {
           conteudo_texto?: string | null
           created_at?: string
+          disciplina?: string | null
           id?: string
           professor_id?: string
           storage_path?: string | null

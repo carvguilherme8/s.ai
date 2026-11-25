@@ -51,7 +51,23 @@ export function Cabecalho() {
           s<span className="grifo ml-1">.ai</span>
         </Link>
 
-        {aluno && <span className="text-sm text-bar-ink/70">Área do aluno</span>}
+        {aluno && (
+          <nav aria-label="Aluno" className="flex items-center gap-1">
+            {[
+              { href: "/aluno", rotulo: "Atividades", on: caminho === "/aluno" || caminho.startsWith("/aluno/atividades") },
+              { href: "/aluno/materiais", rotulo: "Materiais", on: caminho.startsWith("/aluno/materiais") },
+            ].map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={item.on ? "page" : undefined}
+                className="rounded-lg px-2.5 py-1.5 text-sm font-medium whitespace-nowrap"
+              >
+                <span className={item.on ? "grifo" : "text-bar-ink/70 transition-colors hover:text-bar-ink"}>{item.rotulo}</span>
+              </Link>
+            ))}
+          </nav>
+        )}
 
         {/* Telas largas: links direto no topo */}
         {professora && (

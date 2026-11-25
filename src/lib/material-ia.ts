@@ -1,6 +1,7 @@
 import "server-only";
 import { Type, type GenerateContentParameters } from "@google/genai";
 import { EMBEDDING_DIM, gemini } from "@/lib/gemini";
+import { NOMES_DISCIPLINAS, disciplinaValida } from "@/lib/disciplinas";
 
 /** Modelo preferido; os demais entram em ordem quando a cota (por modelo) do plano gratuito acaba. */
 export const MODELO = process.env.GEMINI_MODEL ?? "gemini-3.5-flash";
@@ -50,29 +51,46 @@ export async function extrairTextoDoPdf(pdf: Buffer): Promise<string> {
 
 export type TopicoSugerido = { nome: string; descricao: string };
 
-/** Pede à IA os Tópicos (unidades de conhecimento) do Material. */
-export async function extrairTopicos(titulo: string, texto: string): Promise<TopicoSugerido[]> {
+/** Pede à IA a disciplina do Material e os Tópicos (unidades de conhecimento) dele. */
+export async function extrairTopicos(titulo: string, texto: string): Promise<{ disciplina: string | null; topicos: TopicoSugerido[] }> {
   const res = await gerarComFallback({
     contents:
-      `Material de apoio de ensino médio (foco ENEM): "${titulo}".\n\n` +
-      `Extraia de 3 a 8 Tópicos: unidades de conhecimento pequenas e específicas o bastante para ` +
+      `Material de apoio de ensino médio (foco ENEM): "${titulo}".
+
+` +
+      `1) Diga a disciplina do material, escolhendo UMA entre: ${NOMES_DISCIPLINAS.join(", ")}.
+` +
+      `2) Extraia de 3 a 8 Tópicos: unidades de conhecimento pequenas e específicas o bastante para ` +
       `que se possa medir o domínio de um aluno (ex.: "Função do 2º grau – vértice", e não "Matemática"). ` +
-      `Para cada um dê um nome curto em português e uma descrição de uma frase.\n\n--- MATERIAL ---\n` +
+      `Para cada um dê um nome curto em português e uma descrição de uma frase.
+
+--- MATERIAL ---
+` +
       texto.slice(0, 60_000),
     config: {
       responseMimeType: "application/json",
       responseSchema: {
-        type: Type.ARRAY,
-        items: {
-          type: Type.OBJECT,
-          properties: { nome: { type: Type.STRING }, descricao: { type: Type.STRING } },
-          required: ["nome", "descricao"],
+        type: Type.OBJECT,
+        properties: {
+          disciplina: { type: Type.STRING, enum: NOMES_DISCIPLINAS },
+          topicos: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: { nome: { type: Type.STRING }, descricao: { type: Type.STRING } },
+              required: ["nome", "descricao"],
+            },
+          },
         },
+        required: ["disciplina", "topicos"],
       },
     },
   });
-  const lista = JSON.parse(res.text ?? "[]") as TopicoSugerido[];
-  return lista.filter((t) => t.nome?.trim()).slice(0, 10);
+  const j = JSON.parse(res.text ?? "{}") as { disciplina?: string; topicos?: TopicoSugerido[] };
+  return {
+    disciplina: disciplinaValida(j.disciplina),
+    topicos: (j.topicos ?? []).filter((t) => t.nome?.trim()).slice(0, 10),
+  };
 }
 
 /** Divide o texto em trechos de ~1200 caracteres, respeitando parágrafos e marcadores de página. */
