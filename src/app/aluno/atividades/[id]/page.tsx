@@ -8,6 +8,9 @@ import { IconeCheck, IconeLivro, IconeVoltar, IconeX } from "../../../icones";
 
 export const metadata = { title: "Atividade — s.ai" };
 
+// Ações de IA nesta página demoram; permite até 300s no servidor (ver docs/DEPLOY.md).
+export const maxDuration = 300;
+
 const LETRAS = "ABCDEFGH";
 
 type ItemFeedback = {

@@ -10,6 +10,9 @@ import { BotaoResumo } from "./botao-resumo";
 
 export const metadata = { title: "Diagnóstico — s.ai" };
 
+// Ações de IA nesta página demoram; permite até 120s no servidor (ver docs/DEPLOY.md).
+export const maxDuration = 120;
+
 const pct = (d: number) => `${Math.round(d * 100)}%`;
 
 /** Cor da célula: divergente em torno do limiar. Abaixo = vermelho, acima = azul, no limite = cinza. */

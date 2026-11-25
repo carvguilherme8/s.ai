@@ -7,6 +7,9 @@ import { FormMaterial } from "./form-material";
 
 export const metadata = { title: "Materiais — s.ai" };
 
+// Ações de IA nesta página demoram; permite até 120s no servidor (ver docs/DEPLOY.md).
+export const maxDuration = 120;
+
 export default function MateriaisPage() {
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-10">

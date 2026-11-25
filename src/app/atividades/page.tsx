@@ -6,6 +6,9 @@ import { FormGerar } from "./form-gerar";
 
 export const metadata = { title: "Atividades — s.ai" };
 
+// Ações de IA nesta página demoram; permite até 300s no servidor (ver docs/DEPLOY.md).
+export const maxDuration = 300;
+
 export default function AtividadesPage() {
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-10">
