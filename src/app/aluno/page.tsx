@@ -150,11 +150,16 @@ async function Conteudo() {
                       {t.disciplina ?? SEM_DISCIPLINA} · {t.acertos} de {t.respondidas} certas · <span className="font-medium text-danger">{pct(t.dominio)}</span>
                     </p>
                   </div>
-                  {href && (
-                    <Link href={href} className="btn btn-secondary btn-sm">
-                      Abrir no material{t.pagina ? `, p. ${t.pagina}` : ""}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Link href={`/aluno/reforco/${t.id}`} className="btn btn-primary btn-sm">
+                      Praticar reforço
                     </Link>
-                  )}
+                    {href && (
+                      <Link href={href} className="btn btn-secondary btn-sm">
+                        Abrir no material{t.pagina ? `, p. ${t.pagina}` : ""}
+                      </Link>
+                    )}
+                  </div>
                 </li>
               );
             })}
@@ -190,7 +195,14 @@ async function Conteudo() {
                             <p className="font-medium">{t.lacuna ? <span className="grifo">{t.nome}</span> : t.nome}</p>
                             <p className="mt-0.5 text-xs text-muted">
                               {t.acertos} de {t.respondidas} {t.respondidas === 1 ? "certa" : "certas"}
-                              {t.lacuna && " · vale revisar"}
+                              {t.lacuna && (
+                                <>
+                                  {" · "}
+                                  <Link href={`/aluno/reforco/${t.id}`} className="font-medium text-link hover:underline">
+                                    praticar reforço
+                                  </Link>
+                                </>
+                              )}
                               {href && (
                                 <>
                                   {" · "}
