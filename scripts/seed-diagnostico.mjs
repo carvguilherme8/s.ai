@@ -207,6 +207,14 @@ async function main() {
   ).select(), "tópicos");
   const topicoId = (nome) => topicos.find((t) => t.nome === nome).id;
 
+  const prngOrdem = mulberry32(77);
+const permPorQuestao = new Map();
+function embaralhar() {
+  const idx = [0, 1, 2, 3];
+  for (let i = 3; i > 0; i--) { const j = Math.floor(prngOrdem() * (i + 1)); [idx[i], idx[j]] = [idx[j], idx[i]]; }
+  return idx;
+}
+
   // --- uma atividade publicada por turma, com as mesmas 12 questões
   const questoesPorTurma = new Map(); // turmaId -> [{ id, t (índice do tópico), alternativas:[{id, correta}] }]
   for (const turma of turmas) {
@@ -223,8 +231,10 @@ async function main() {
           atividade_id: atividade.id, topico_id: topicoId(top.nome), trecho_id: trechos[top.pagina - 1].id,
           tipo: "multipla_escolha", ordem: ordem++, enunciado,
         }).select().single(), "questão");
+        // A 1ª alternativa do conteúdo é a correta; a ordem exibida é embaralhada (igual nas duas turmas).
+        const perm = permPorQuestao.get(enunciado) ?? permPorQuestao.set(enunciado, embaralhar()).get(enunciado);
         const salvas = ok(await supabase.from("alternativas").insert(
-          alts.map(([texto, equivoco], i) => ({ questao_id: q.id, ordem: i, texto, correta: i === 0, equivoco: i === 0 ? null : equivoco })),
+          alts.map(([texto, equivoco], i) => ({ questao_id: q.id, ordem: perm[i], texto, correta: i === 0, equivoco: i === 0 ? null : equivoco })),
         ).select(), "alternativas");
         lista.push({ id: q.id, t: ti, alternativas: salvas.sort((a, b) => a.ordem - b.ordem), atividadeId: atividade.id });
       }
