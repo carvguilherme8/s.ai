@@ -4,7 +4,7 @@ import { connection } from "next/server";
 import { getProfessorAtual } from "@/lib/usuario-atual";
 import { diagnosticosDoProfessor, lacunasDaTurma, LIMIAR_LACUNA, MIN_QUESTOES } from "@/lib/diagnostico";
 import type { ResumoDiagnostico } from "@/lib/diagnostico-ia";
-import { areaDaDisciplina, ordemDaDisciplina, SEM_DISCIPLINA } from "@/lib/disciplinas";
+import { ordemDaDisciplina, SEM_DISCIPLINA } from "@/lib/disciplinas";
 import { Bolinhas } from "../bolinhas";
 import { IconeLacuna } from "../icones";
 import { AcoesRelatorio } from "./acoes-relatorio";
@@ -124,13 +124,11 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
           <span className="text-sm text-muted">Disciplina:</span>
           {["", ...disciplinasDaTurma].map((nome) => {
             const ativo = nome === filtroAtivo;
-            const area = areaDaDisciplina(nome === SEM_DISCIPLINA ? null : nome);
             return (
               <Link
                 key={nome || "todas"}
                 href={nome ? `/diagnostico?turma=${d.turma.id}&disc=${encodeURIComponent(nome)}` : `/diagnostico?turma=${d.turma.id}`}
                 aria-current={ativo ? "true" : undefined}
-                title={area ?? undefined}
                 className={`inline-flex min-h-10 items-center rounded-full border px-3.5 text-sm transition-colors ${ativo ? "border-ink bg-hl font-semibold text-hl-ink" : "border-line-strong bg-surface hover:bg-sunken"}`}
               >
                 {nome || "Todas"}

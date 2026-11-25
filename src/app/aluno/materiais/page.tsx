@@ -59,7 +59,7 @@ async function Conteudo() {
             <section key={disciplina} aria-label={disciplina}>
               <h2 className="mb-3 flex flex-wrap items-baseline gap-x-3 font-display text-xl font-bold">
                 {disciplina}
-                {area && <span className="font-sans text-xs font-normal text-muted">{area}</span>}
+                {area && area !== disciplina && <span className="font-sans text-xs font-normal text-muted">{area}</span>}
               </h2>
               <ul className="space-y-2">
                 {lista.map((m) => (

@@ -177,7 +177,7 @@ async function Conteudo() {
                   <h3 className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
                     <span className="font-display text-lg font-bold">
                       {disciplina}
-                      {area && <span className="ml-2 font-sans text-xs font-normal text-muted">{area}</span>}
+                      {area && area !== disciplina && <span className="ml-2 font-sans text-xs font-normal text-muted">{area}</span>}
                     </span>
                     <span className="text-xs text-muted">média <span className="font-semibold tabular-nums text-ink">{pct(media)}</span></span>
                   </h3>

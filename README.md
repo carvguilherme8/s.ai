@@ -15,7 +15,8 @@ Plataforma para professores do ensino médio público (foco em ENEM). O professo
 5. Professor vê o **diagnóstico**: mapa de domínio por tópico × aluno, lacunas, equívocos mais frequentes e um resumo da IA com o que revisar.
 6. **Age sobre a lacuna:** com um clique, a IA gera uma **atividade de reforço** cujos distratores testam os equívocos daquela turma.
 7. **Acompanha:** a evolução do domínio a cada atividade (o reforço fechou a lacuna?), o detalhe de cada aluno e o ajuste da nota que a IA deu às dissertativas.
-8. **Leva para fora:** copia o resumo pronto para o WhatsApp ou imprime/salva em PDF. O aluno vê o próprio domínio por tópico.
+8. **Leva para fora:** copia o resumo pronto para o WhatsApp ou imprime/salva em PDF.
+9. **Revisão por disciplina (ENEM):** cada material tem uma disciplina (a IA sugere, a professora corrige). O aluno lê os materiais da turma, vê o domínio agrupado por disciplina e recebe um plano "Revise primeiro" com link para a página do material onde mais errou. O Diagnóstico filtra por disciplina.
 
 O diagnóstico é calculado **sem IA**; a IA só explica os números.
 
@@ -33,6 +34,7 @@ cp .env.example .env.local     # preencha as chaves e SEED_PROFESSOR_PASSWORD (v
 npm run seed                   # professora, turmas e alunos fictícios
 npm run seed:diagnostico       # 25 alunos e entregas simuladas com lacunas
 npm run seed:reforco           # reforço fictício na 2ºA, para a evolução no tempo
+npm run seed:matematica        # segunda disciplina (Matemática) na demonstração
 npm run dev                    # http://localhost:3000
 ```
 

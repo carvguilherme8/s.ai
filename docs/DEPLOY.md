@@ -20,12 +20,14 @@ O arquivo `.env.local` **não** vai para o repositório (está no `.gitignore`).
 ## 2. Banco de dados
 
 1. O schema está em `supabase/migrations/` e precisa estar aplicado no projeto Supabase.
-2. **Aplique a migration `20261124230000_professor_somente_por_admin.sql`** no SQL Editor do Supabase: ela impede que alguém
+2. **Aplique as migrations em `supabase/migrations/`** (as duas últimas: `20261124230000_professor_somente_por_admin.sql` e
+   `20261125120000_disciplina_em_materiais.sql`, que acrescenta a disciplina do material e deixa o aluno ler os materiais das atividades da turma).
+   A primeira no SQL Editor do Supabase: ela impede que alguém
    se cadastre como professor pelo cadastro público. Em Authentication → Sign In / Providers, desligue também
    "Allow new users to sign up" (o cadastro de alunos usa a chave administrativa e continua funcionando).
 3. Com `SEED_PROFESSOR_PASSWORD` definida no `.env.local` (senha forte): `npm run seed` (professora, turmas e alunos) e `npm run seed:diagnostico`
    (25 alunos fictícios e entregas simuladas com lacunas desenhadas) e, para a evolução no tempo, `npm run seed:reforco`
-   (um reforço fictício na 2ºA).
+   (um reforço fictício na 2ºA) e `npm run seed:matematica` (segunda disciplina, para o agrupamento por disciplina ter o que mostrar).
 4. Depois do seed, abra o Diagnóstico das duas turmas e clique em **Gerar resumo com IA** uma vez em cada.
    O resumo fica guardado e a demo não depende da cota do Gemini para mostrá-lo.
 
