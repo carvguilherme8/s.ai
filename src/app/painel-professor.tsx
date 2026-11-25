@@ -46,10 +46,7 @@ export async function PainelProfessor() {
           <Link href="/materiais" className="btn btn-secondary">Enviar material</Link>
           <Link href="/atividades" className="btn btn-secondary">Nova atividade</Link>
         </div>
-        <p className="mt-4 flex flex-wrap items-center gap-2 text-xs text-muted">
-          <span className="badge badge-warn">login simulado</span>
-          {email}
-        </p>
+        <p className="mt-4 text-xs text-muted">Conectada como {email}</p>
       </header>
 
       <section aria-labelledby="h-turmas">

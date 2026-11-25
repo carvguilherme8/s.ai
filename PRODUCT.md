@@ -21,10 +21,10 @@ O Diagnóstico é o diferencial: não é um gerador de questões nem um chat de 
 
 ## Operating Context
 
-- Interface em **PT-BR**. Vídeo de demonstração narrado em inglês, ≤ 3 min, sem login; demo online durante toda a avaliação.
+- Interface em **PT-BR**. Vídeo de demonstração em português (legendas), ≤ 3 min, acessível sem login; demo online durante toda a avaliação.
 - Sem dados pessoais reais na demo (alunos fictícios).
 - Materiais: PDF com texto ou texto colado. Sem OCR, vídeo ou links.
-- Login da professora é simulado por ora; aluno tem login real.
+- Login real para professora (conta única de demonstração, senha entregue só na submissão) e para alunos (cadastro com código de convite).
 - Prazo de submissão: 30/11/2026.
 
 ## Capabilities and Constraints

@@ -13,16 +13,19 @@ Configure no painel da Vercel (Project → Settings → Environment Variables), 
 | `SUPABASE_SECRET_KEY` | Supabase → API Keys | **só servidor**; ignora RLS. Nunca no front |
 | `GEMINI_API_KEY` | https://aistudio.google.com/apikey | sem ela a IA não funciona |
 | `GEMINI_MODEL` | opcional | padrão `gemini-3.5-flash` |
-| `DEMO_PROFESSOR_EMAIL` | opcional | padrão `professora@demo.s-ai.dev` |
+| `SEED_PROFESSOR_PASSWORD` | você define | usada só pelo `npm run seed`; **não** precisa estar na Vercel |
 
 O arquivo `.env.local` **não** vai para o repositório (está no `.gitignore`).
 
 ## 2. Banco de dados
 
 1. O schema está em `supabase/migrations/` e precisa estar aplicado no projeto Supabase.
-2. Com as variáveis no `.env.local`: `npm run seed` (professora, turmas e alunos) e `npm run seed:diagnostico`
+2. **Aplique a migration `20261124230000_professor_somente_por_admin.sql`** no SQL Editor do Supabase: ela impede que alguém
+   se cadastre como professor pelo cadastro público. Em Authentication → Sign In / Providers, desligue também
+   "Allow new users to sign up" (o cadastro de alunos usa a chave administrativa e continua funcionando).
+3. Com `SEED_PROFESSOR_PASSWORD` definida no `.env.local` (senha forte): `npm run seed` (professora, turmas e alunos) e `npm run seed:diagnostico`
    (25 alunos fictícios e entregas simuladas com lacunas desenhadas).
-3. Depois do seed, abra o Diagnóstico das duas turmas e clique em **Gerar resumo com IA** uma vez em cada.
+4. Depois do seed, abra o Diagnóstico das duas turmas e clique em **Gerar resumo com IA** uma vez em cada.
    O resumo fica guardado e a demo não depende da cota do Gemini para mostrá-lo.
 
 ## 3. Publicar
@@ -51,9 +54,10 @@ supabase.com/dashboard e a demo volta.
 
 ## 5. Riscos conhecidos (leia antes de enviar o link)
 
-- **Login da professora é simulado.** Quem abre o site vê o painel como a professora demo e pode enviar
-  material, gerar questões e publicar atividades. Isso consome cota do Gemini. É intencional para a demo
-  (o regulamento pede acesso sem login), mas não use este modo com dados reais.
+- **A professora tem login real**, com uma senha só sua (`SEED_PROFESSOR_PASSWORD`). Entregue essa senha aos
+  avaliadores **só na submissão**, nunca no repositório. Quem a tiver pode gerar questões e gastar a cota do Gemini.
+  O vídeo e o repositório são públicos; o painel da professora não.
+- **Cadastro público do Supabase:** sem a migration acima, alguém poderia criar uma conta de professor pela API.
 - **Cota gratuita do Gemini:** 20 requisições por dia por modelo. O código tenta outros modelos quando um
   esgota, e o feedback do aluno tem plano B sem IA, mas a geração de questões pode falhar. Considere
   ativar o faturamento na chave durante a avaliação.
@@ -64,7 +68,9 @@ supabase.com/dashboard e a demo volta.
 - [ ] Build local: `npm run build`
 - [ ] Variáveis configuradas na Vercel
 - [ ] Seed rodado e resumos do Diagnóstico gerados nas duas turmas
-- [ ] Abrir o site em janela anônima: painel, Diagnóstico, entrada do aluno
+- [ ] Migration de segurança aplicada e "Allow new users to sign up" desligado
+- [ ] Abrir o site em janela anônima: tudo (menos /entrar e /cadastro) deve mandar para a entrada
+- [ ] Entrar como professora e como aluno fictício
 - [ ] Entrar como aluno fictício e responder uma atividade ponta a ponta
 - [ ] `/api/saude` responde `{"ok":true}`
 - [ ] Cron aparece no painel da Vercel

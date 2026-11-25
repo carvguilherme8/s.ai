@@ -9,7 +9,9 @@ const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.
   auth: { persistSession: false },
 });
 
-const SENHA = "demo1234";
+const SENHA = "demo1234"; // alunos fictícios
+// Senha da professora: defina SEED_PROFESSOR_PASSWORD para ela não usar a senha pública dos alunos.
+const SENHA_PROFESSORA = process.env.SEED_PROFESSOR_PASSWORD ?? SENHA;
 const DOMINIO = "demo.s-ai.dev";
 const MATERIAL = "Leis de Newton (demo)";
 const TITULO_ATIVIDADE = "Leis de Newton — Lista 1 (demo)";
@@ -152,7 +154,9 @@ const slug = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
 async function usuario(email, metadata) {
   const { data, error } = await supabase.auth.admin.createUser({
-    email, password: SENHA, email_confirm: true, user_metadata: metadata,
+    email, password: metadata.papel === "professor" ? SENHA_PROFESSORA : SENHA, email_confirm: true, user_metadata: metadata,
+    // o papel 'professor' só vale vindo de app_metadata (ver a migration professor_somente_por_admin)
+    app_metadata: metadata.papel === "professor" ? { papel: "professor" } : undefined,
   });
   if (!error) return data.user.id;
   if (!/already|registered/i.test(error.message)) throw error;

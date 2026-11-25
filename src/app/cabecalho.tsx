@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { sair } from "./auth/actions";
 
 const ITENS = [
   { href: "/", rotulo: "Painel", exato: true },
@@ -43,9 +44,9 @@ export function Cabecalho() {
         )}
 
         {!aluno && !auth && (
-          <Link href="/entrar" className="ml-auto hidden text-sm text-bar-ink/70 hover:text-bar-ink sm:block">
-            Área do aluno
-          </Link>
+          <form action={sair} className="ml-auto">
+            <button className="rounded-lg px-2 py-1.5 text-sm text-bar-ink/70 transition-colors hover:text-bar-ink">Sair</button>
+          </form>
         )}
       </div>
     </header>

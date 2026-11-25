@@ -6,12 +6,16 @@ const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.
   auth: { persistSession: false },
 });
 
-const SENHA = "demo1234";
+const SENHA = "demo1234"; // alunos fictícios
+// Senha da professora: defina SEED_PROFESSOR_PASSWORD para ela não usar a senha pública dos alunos.
+const SENHA_PROFESSORA = process.env.SEED_PROFESSOR_PASSWORD ?? SENHA;
 const DOMINIO = "demo.s-ai.dev";
 
 async function usuario(email, metadata) {
   const { data, error } = await supabase.auth.admin.createUser({
-    email, password: SENHA, email_confirm: true, user_metadata: metadata,
+    email, password: metadata.papel === "professor" ? SENHA_PROFESSORA : SENHA, email_confirm: true, user_metadata: metadata,
+    // o papel 'professor' só vale vindo de app_metadata (ver a migration professor_somente_por_admin)
+    app_metadata: metadata.papel === "professor" ? { papel: "professor" } : undefined,
   });
   if (!error) return data.user.id;
   if (!/already/i.test(error.message)) throw error;
@@ -48,7 +52,7 @@ async function main() {
     );
   }
 
-  console.log(`Seed ok. Login de teste: professora@${DOMINIO} / ${SENHA}`);
+  console.log(`Seed ok. Professora: professora@${DOMINIO} (senha: SEED_PROFESSOR_PASSWORD, ou a senha dos alunos se não definida). Alunos: <nome>@${DOMINIO} / ${SENHA}`);
   console.log("Códigos de convite:", turmas.map((t) => `${t.nome}=${t.codigo_convite}`).join(", "));
 }
 

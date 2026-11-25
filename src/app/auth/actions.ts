@@ -9,9 +9,10 @@ export type EstadoForm = { erro?: string; valores?: { nome?: string; codigo?: st
 export async function entrar(_: EstadoForm, form: FormData): Promise<EstadoForm> {
   const supabase = await createClient();
   const email = String(form.get("email") ?? "").trim();
-  const { error } = await supabase.auth.signInWithPassword({ email, password: String(form.get("senha") ?? "") });
-  if (error) return { erro: "E-mail ou senha incorretos.", valores: { email } };
-  redirect("/aluno");
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password: String(form.get("senha") ?? "") });
+  if (error || !data.user) return { erro: "E-mail ou senha incorretos.", valores: { email } };
+  const { data: perfil } = await supabase.from("profiles").select("papel").eq("id", data.user.id).maybeSingle();
+  redirect(perfil?.papel === "professor" ? "/" : "/aluno");
 }
 
 /** Cadastro de ALUNO com código de convite (a professora usa o login simulado). */

@@ -26,7 +26,7 @@ Requer Node 20+ e um projeto Supabase.
 
 ```bash
 npm install
-cp .env.example .env.local     # preencha as chaves (ver docs/DEPLOY.md)
+cp .env.example .env.local     # preencha as chaves e SEED_PROFESSOR_PASSWORD (ver docs/DEPLOY.md)
 npm run seed                   # professora, turmas e alunos fictícios
 npm run seed:diagnostico       # 25 alunos e entregas simuladas com lacunas
 npm run dev                    # http://localhost:3000
@@ -38,7 +38,7 @@ O schema está em `supabase/migrations/` e precisa estar aplicado no projeto.
 
 **Demo online: https://s-ai-phi.vercel.app**
 
-- **Professora:** o login é **simulado** (entra direto como a professora demo), para a demo funcionar sem cadastro. Veja os limites disso em [docs/DEPLOY.md](docs/DEPLOY.md).
+- **Professora:** `professora@demo.s-ai.dev`. A senha é informada aos avaliadores na submissão (não fica no repositório); para rodar localmente, defina `SEED_PROFESSOR_PASSWORD` antes do `npm run seed`.
 - **Aluno:** entre em `/entrar` com uma conta fictícia do seed (`<nome>@demo.s-ai.dev`, por exemplo `rafael@demo.s-ai.dev`; a senha está em `scripts/seed.mjs`) ou crie a sua em `/cadastro` com o código de convite da turma (visível no painel da professora).
 - Todos os dados da demo são fictícios.
 
@@ -54,4 +54,4 @@ O schema está em `supabase/migrations/` e precisa estar aplicado no projeto.
 
 - Materiais: só PDF com texto e texto colado (sem OCR, vídeo ou links).
 - A cota gratuita da Gemini API limita a IA; o feedback do aluno tem plano B sem IA.
-- Login real existe só para o aluno; a professora é simulada nesta versão.
+- A professora tem uma conta única de demonstração (sem cadastro de novas professoras).
