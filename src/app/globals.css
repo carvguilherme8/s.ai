@@ -24,3 +24,17 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Mapa de calor do Diagnóstico: esquema divergente em torno da meta de 60% (cinza = limite). */
+:root {
+  --hm-neutro: #f0efec;
+  --hm-baixo: #d03b3b;
+  --hm-alto: #2d6fb7;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --hm-neutro: #383835;
+    --hm-baixo: #e0605a;
+    --hm-alto: #4a90d9;
+  }
+}
