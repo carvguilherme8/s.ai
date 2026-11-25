@@ -14,7 +14,7 @@ export default function AtividadesPage() {
     <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-10">
       <h1 className="text-3xl font-bold tracking-tight">Atividades</h1>
       <p className="mt-1 max-w-prose text-muted">
-        A IA gera as questões a partir de um material; você revisa e só então publica para a turma.
+        A IA gera as questões a partir de um material ou de um tema digitado; você revisa e só então publica para a turma.
       </p>
       <Suspense fallback={<p className="mt-8 text-sm text-muted">Carregando…</p>}>
         <Conteudo />
@@ -27,19 +27,23 @@ async function Conteudo() {
   await connection();
   const { supabase, professor } = await getProfessorAtual();
 
-  const [{ data: turmas }, { data: materiais }, { data: atividades }] = await Promise.all([
+  const [{ data: turmas }, { data: materiais }, { data: topicos }, { data: atividades }] = await Promise.all([
     supabase.from("turmas").select("id, nome").eq("professor_id", professor.id).order("nome"),
     supabase.from("materiais").select("id, titulo, turma_id, topicos(id, nome, confirmado, created_at)")
       .eq("professor_id", professor.id).order("created_at", { ascending: false }),
+    supabase.from("topicos").select("nome").eq("professor_id", professor.id).eq("confirmado", true).order("nome"),
     supabase.from("atividades")
       .select("id, titulo, status, prazo, turma:turmas(nome), questoes(id)")
       .eq("professor_id", professor.id).order("created_at", { ascending: false }),
   ]);
 
+  const topicosExistentes = [...new Set((topicos ?? []).map((t) => t.nome))];
+
   return (
     <div className="mt-8 max-w-3xl space-y-8">
       <FormGerar
         turmas={turmas ?? []}
+        topicosExistentes={topicosExistentes}
         materiais={(materiais ?? []).map((m) => ({
           id: m.id,
           titulo: m.titulo,

@@ -17,22 +17,94 @@ const inteiro = (v: FormDataEntryValue | null, min: number, max: number, padrao:
 export async function gerarAtividade(_: EstadoForm, formData: FormData): Promise<EstadoForm> {
   const { supabase, professor } = await getProfessorAtual();
 
-  const materialId = String(formData.get("material_id") ?? "");
+  const modo = formData.get("modo") === "tema" ? "tema" : "material";
   const turmaId = String(formData.get("turma_id") ?? "");
-  const titulo = String(formData.get("titulo") ?? "").trim();
+  const titulo = String(formData.get("titulo") ?? "").replace(/\s+/g, " ").trim();
   const nMC = inteiro(formData.get("mc_por_topico"), 0, 5, 3);
   const nDiss = inteiro(formData.get("dissertativas"), 0, 3, 1);
 
   if (!titulo) return { erro: "Dê um título à atividade." };
+  if (titulo.length > 120) return { erro: "O título pode ter no máximo 120 caracteres." };
   if (nMC + nDiss === 0) return { erro: "Peça pelo menos uma questão." };
   if (!geminiConfigurado()) return { erro: "GEMINI_API_KEY não configurada no .env.local." };
 
-  const [{ data: material }, { data: turma }] = await Promise.all([
-    supabase.from("materiais").select("id, titulo").eq("id", materialId).eq("professor_id", professor.id).maybeSingle(),
-    supabase.from("turmas").select("id").eq("id", turmaId).eq("professor_id", professor.id).maybeSingle(),
-  ]);
-  if (!material) return { erro: "Material inválido." };
+  const { data: turma } = await supabase
+    .from("turmas").select("id").eq("id", turmaId).eq("professor_id", professor.id).maybeSingle();
   if (!turma) return { erro: "Turma inválida." };
+
+  if (modo === "tema") {
+    const tema = String(formData.get("tema") ?? "").replace(/\s+/g, " ").trim();
+    const orientacoes = String(formData.get("orientacoes") ?? "").trim();
+    if (tema.length < 3) return { erro: "Digite o tema (mínimo 3 caracteres)." };
+    if (tema.length > 100) return { erro: "O tema pode ter no máximo 100 caracteres." };
+    if (orientacoes.length > 500) return { erro: "As orientações podem ter no máximo 500 caracteres." };
+
+    // Reaproveita um tópico já existente com o mesmo nome (para somar no Diagnóstico) ou cria um novo.
+    const { data: existentes } = await supabase
+      .from("topicos")
+      .select("id, nome, descricao, confirmado")
+      .eq("professor_id", professor.id);
+    const encontrado = existentes?.find((t) => t.nome.toLocaleLowerCase("pt-BR") === tema.toLocaleLowerCase("pt-BR"));
+
+    let topicoAlvo: { id: string; nome: string; descricao: string | null };
+    let criouTopico = false;
+
+    if (encontrado) {
+      if (!encontrado.confirmado) {
+        await supabase.from("topicos").update({ confirmado: true }).eq("id", encontrado.id).eq("professor_id", professor.id);
+      }
+      topicoAlvo = { id: encontrado.id, nome: encontrado.nome, descricao: encontrado.descricao };
+    } else {
+      const novoId = crypto.randomUUID();
+      const { error: erroTopico } = await supabase.from("topicos").insert({
+        id: novoId,
+        professor_id: professor.id,
+        material_id: null,
+        nome: tema,
+        descricao: orientacoes.slice(0, 240) || null,
+        confirmado: true,
+      });
+      if (erroTopico) {
+        console.error("gerarAtividade (tema) topico:", erroTopico);
+        return { erro: "Não foi possível preparar o tópico. Tente novamente." };
+      }
+      topicoAlvo = { id: novoId, nome: tema, descricao: orientacoes.slice(0, 240) || null };
+      criouTopico = true;
+    }
+
+    let geradas: QuestaoGerada[];
+    try {
+      geradas = await gerarQuestoesDoTopico(topicoAlvo, [], nMC, nDiss, [], orientacoes || null);
+    } catch (e) {
+      console.error("gerarAtividade (tema):", e);
+      if (criouTopico) await supabase.from("topicos").delete().eq("id", topicoAlvo.id).eq("professor_id", professor.id);
+      return { erro: "A IA não conseguiu gerar questões agora. Tente novamente." };
+    }
+    if (!geradas.length) {
+      if (criouTopico) await supabase.from("topicos").delete().eq("id", topicoAlvo.id).eq("professor_id", professor.id);
+      return { erro: "A IA não conseguiu gerar questões agora. Tente novamente." };
+    }
+
+    let atividadeId: string;
+    try {
+      atividadeId = await salvarAtividadeGerada(supabase, {
+        professorId: professor.id, turmaId, materialId: null, titulo, geradas, trechos: [],
+      });
+    } catch (e) {
+      console.error("gerarAtividade (tema) salvar:", e);
+      if (criouTopico) await supabase.from("topicos").delete().eq("id", topicoAlvo.id).eq("professor_id", professor.id);
+      return { erro: "Não foi possível salvar a atividade. Tente novamente." };
+    }
+
+    revalidatePath("/");
+    revalidatePath("/atividades");
+    redirect(`/atividades/${atividadeId}`);
+  }
+
+  const materialId = String(formData.get("material_id") ?? "");
+  const { data: material } = await supabase
+    .from("materiais").select("id, titulo").eq("id", materialId).eq("professor_id", professor.id).maybeSingle();
+  if (!material) return { erro: "Material inválido." };
 
   const selecionados = new Set(formData.getAll("topico_ids").map(String).filter(Boolean));
   if (!selecionados.size) return { erro: "Selecione ao menos um tópico para gerar questões." };

@@ -12,7 +12,7 @@ export async function salvarAtividadeGerada(
   p: {
     professorId: string;
     turmaId: string;
-    materialId: string;
+    materialId: string | null;
     titulo: string;
     geradas: QuestaoGerada[];
     trechos: { id: string; ordem: number }[];

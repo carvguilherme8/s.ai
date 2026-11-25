@@ -62,11 +62,17 @@ export async function gerarReforco(_: EstadoResumo, formData: FormData): Promise
     .from("topicos").select("id, nome, descricao, material_id")
     .eq("id", topicoId).eq("professor_id", professor.id).maybeSingle();
   if (!topico) return { erro: "Tópico inválido." };
-  if (!topico.material_id) return { erro: "Este tópico não está ligado a um material. Gere o reforço pela tela Atividades." };
 
-  const { data: trechos } = await supabase
-    .from("material_trechos").select("id, ordem, pagina, conteudo").eq("material_id", topico.material_id).order("ordem");
-  if (!trechos?.length) return { erro: "O material deste tópico não tem trechos indexados." };
+  const trechos = topico.material_id
+    ? (
+        await supabase
+          .from("material_trechos")
+          .select("id, ordem, pagina, conteudo")
+          .eq("material_id", topico.material_id)
+          .order("ordem")
+      ).data ?? []
+    : [];
+  if (topico.material_id && !trechos.length) return { erro: "O material deste tópico não tem trechos indexados." };
 
   const foco = diag.equivocos.filter((e) => e.topicoId === topicoId).slice(0, 3).map((e) => e.equivoco);
 

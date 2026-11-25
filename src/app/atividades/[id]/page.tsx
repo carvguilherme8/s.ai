@@ -54,7 +54,7 @@ async function Conteudo({ params }: { params: PageProps<"/atividades/[id]">["par
             <span className={`badge ${rascunho ? "badge-neutral" : "badge-ok"}`}>
               {rascunho ? "rascunho" : "publicada"}
             </span>
-            {atividade.turma?.nome} · material: {atividade.material?.titulo ?? "—"} · {questoes.length} questões
+            {atividade.turma?.nome} · {atividade.material?.titulo ? `material: ${atividade.material.titulo}` : "por tema (sem material)"} · {questoes.length} questões
             {!rascunho && atividade.prazo && ` · prazo ${new Date(atividade.prazo).toLocaleDateString("pt-BR")}`}
           </p>
         </div>
