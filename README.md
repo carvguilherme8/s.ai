@@ -36,6 +36,8 @@ O schema está em `supabase/migrations/` e precisa estar aplicado no projeto.
 
 ## Demonstração
 
+**Demo online: https://s-ai-phi.vercel.app**
+
 - **Professora:** o login é **simulado** (entra direto como a professora demo), para a demo funcionar sem cadastro. Veja os limites disso em [docs/DEPLOY.md](docs/DEPLOY.md).
 - **Aluno:** entre em `/entrar` com uma conta fictícia do seed (`<nome>@demo.s-ai.dev`, por exemplo `rafael@demo.s-ai.dev`; a senha está em `scripts/seed.mjs`) ou crie a sua em `/cadastro` com o código de convite da turma (visível no painel da professora).
 - Todos os dados da demo são fictícios.
