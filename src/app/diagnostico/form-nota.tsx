@@ -40,7 +40,7 @@ export function FormNota({
             </>
           )}
         </p>
-        <form action={acaoSalvar} className="flex items-end gap-2">
+        <form action={acaoSalvar} className="flex flex-wrap items-end gap-2">
           <input type="hidden" name="resposta_id" value={respostaId} />
           <label className="text-xs text-muted">
             Nova nota (0 a 10)
@@ -54,6 +54,14 @@ export function FormNota({
               step={0.5}
               defaultValue={atual === null ? "" : (Math.round(atual * 100) / 10).toString()}
               className="field mt-1 w-24"
+            />
+          </label>
+          <label className="min-w-44 flex-1 text-xs text-muted">
+            Comentário docente (opcional, atualiza o feedback do aluno)
+            <input
+              name="comentario_professor"
+              placeholder="Ex.: Considerei o raciocínio correto no passo 2."
+              className="field mt-1"
             />
           </label>
           <button disabled={salvando || restaurando} className="btn btn-primary btn-sm">

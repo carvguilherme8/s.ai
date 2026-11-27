@@ -58,6 +58,8 @@ export type Database = {
           prazo: string | null
           professor_id: string
           publicada_em: string | null
+          regras_globais: Json
+          revisar_antes_liberar: boolean
           status: Database["public"]["Enums"]["status_atividade"]
           titulo: string
           turma_id: string
@@ -70,6 +72,8 @@ export type Database = {
           prazo?: string | null
           professor_id: string
           publicada_em?: string | null
+          regras_globais?: Json
+          revisar_antes_liberar?: boolean
           status?: Database["public"]["Enums"]["status_atividade"]
           titulo: string
           turma_id: string
@@ -82,6 +86,8 @@ export type Database = {
           prazo?: string | null
           professor_id?: string
           publicada_em?: string | null
+          regras_globais?: Json
+          revisar_antes_liberar?: boolean
           status?: Database["public"]["Enums"]["status_atividade"]
           titulo?: string
           turma_id?: string
@@ -140,23 +146,29 @@ export type Database = {
         Row: {
           aluno_id: string
           atividade_id: string
+          desconsiderar_diagnostico: boolean
           enviada_em: string
           feedback: Json | null
           id: string
+          liberada_em: string | null
         }
         Insert: {
           aluno_id: string
           atividade_id: string
+          desconsiderar_diagnostico?: boolean
           enviada_em?: string
           feedback?: Json | null
           id?: string
+          liberada_em?: string | null
         }
         Update: {
           aluno_id?: string
           atividade_id?: string
+          desconsiderar_diagnostico?: boolean
           enviada_em?: string
           feedback?: Json | null
           id?: string
+          liberada_em?: string | null
         }
         Relationships: [
           {
@@ -257,6 +269,44 @@ export type Database = {
             columns: ["material_id"]
             isOneToOne: false
             referencedRelation: "materiais"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      professor_rubrica_presets: {
+        Row: {
+          created_at: string
+          disciplina: string | null
+          id: string
+          nome: string
+          pilulas_padrao: Json
+          professor_id: string
+          regras_globais: Json
+        }
+        Insert: {
+          created_at?: string
+          disciplina?: string | null
+          id?: string
+          nome: string
+          pilulas_padrao?: Json
+          professor_id: string
+          regras_globais?: Json
+        }
+        Update: {
+          created_at?: string
+          disciplina?: string | null
+          id?: string
+          nome?: string
+          pilulas_padrao?: Json
+          professor_id?: string
+          regras_globais?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "professor_rubrica_presets_professor_id_fkey"
+            columns: ["professor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -402,6 +452,8 @@ export type Database = {
           nota_ajustada: number | null
           nota_ia: number | null
           questao_id: string
+          revisada_em: string | null
+          telemetria: Json | null
           texto: string | null
         }
         Insert: {
@@ -412,6 +464,8 @@ export type Database = {
           nota_ajustada?: number | null
           nota_ia?: number | null
           questao_id: string
+          revisada_em?: string | null
+          telemetria?: Json | null
           texto?: string | null
         }
         Update: {
@@ -422,6 +476,8 @@ export type Database = {
           nota_ajustada?: number | null
           nota_ia?: number | null
           questao_id?: string
+          revisada_em?: string | null
+          telemetria?: Json | null
           texto?: string | null
         }
         Relationships: [
@@ -543,6 +599,10 @@ export type Database = {
           pagina: number | null
           similaridade: number
         }[]
+      }
+      diagnostico_agregado_professor: {
+        Args: { p_professor: string }
+        Returns: Json
       }
       ja_entreguei: { Args: { p_atividade: string }; Returns: boolean }
       meu_papel: { Args: never; Returns: Database["public"]["Enums"]["papel"] }

@@ -9,6 +9,7 @@ import { Bolinhas } from "../../../bolinhas";
 import { IconeVoltar } from "../../../icones";
 import { BotaoCorrigir } from "../../botao-corrigir";
 import { FormNota } from "../../form-nota";
+import { PilulasRevisao } from "../../pilulas-revisao";
 
 export const metadata = { title: "Aluno — s.ai" };
 
@@ -119,6 +120,18 @@ async function Conteudo({ params }: { params: PageProps<"/diagnostico/aluno/[id]
                           <p className="text-sm text-muted">A correção por IA ainda não ficou pronta (cota esgotada ou falha de rede).</p>
                           <BotaoCorrigir respostaId={r.id} />
                         </div>
+                      ) : r.correcaoV2 ? (
+                        <PilulasRevisao
+                          respostaId={r.id}
+                          entregaId={r.entregaId}
+                          rubrica={r.rubrica}
+                          regrasGlobais={r.regrasGlobais}
+                          correcaoV2={r.correcaoV2}
+                          telemetria={r.telemetria}
+                          revisadaEm={r.revisadaEm}
+                          aguardandoLiberacao={r.aguardandoLiberacao}
+                          desconsiderada={r.desconsiderada}
+                        />
                       ) : (
                         <>
                           {r.criterios.length > 0 && (

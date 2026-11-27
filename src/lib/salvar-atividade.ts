@@ -1,10 +1,22 @@
 import "server-only";
+import { randomInt } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/lib/supabase/database.types";
+import type { Database, Json } from "@/lib/supabase/database.types";
 import type { QuestaoGerada } from "@/lib/questoes-ia";
+import { REGRAS_GLOBAIS_PADRAO, type RegrasGlobaisProva } from "@/lib/nota-rubrica";
+
+function embaralhar<T>(lista: T[]): T[] {
+  const copia = [...lista];
+  for (let i = copia.length - 1; i > 0; i--) {
+    const j = randomInt(0, i + 1);
+    [copia[i], copia[j]] = [copia[j], copia[i]];
+  }
+  return copia;
+}
 
 /**
  * Grava uma Atividade (em Rascunho) com as Questões geradas pela IA.
+ * Embaralha obrigatoriamente a ordem das alternativas (elimina viés de posição do LLM).
  * Se algo falhar no meio, apaga o que já tinha gravado e relança o erro.
  */
 export async function salvarAtividadeGerada(
@@ -17,13 +29,23 @@ export async function salvarAtividadeGerada(
     geradas: QuestaoGerada[];
     trechos: { id: string; ordem: number }[];
     ehReforco?: boolean;
+    regrasGlobais?: Partial<RegrasGlobaisProva>;
+    revisarAntesLiberar?: boolean;
   },
 ): Promise<string> {
   const trechoPorOrdem = new Map(p.trechos.map((t) => [t.ordem, t.id]));
   const atividadeId = crypto.randomUUID();
+  const regrasGlobais = { ...REGRAS_GLOBAIS_PADRAO, ...p.regrasGlobais };
+
   try {
     const { error } = await db.from("atividades").insert({
-      id: atividadeId, professor_id: p.professorId, turma_id: p.turmaId, material_id: p.materialId, titulo: p.titulo,
+      id: atividadeId,
+      professor_id: p.professorId,
+      turma_id: p.turmaId,
+      material_id: p.materialId,
+      titulo: p.titulo,
+      regras_globais: regrasGlobais as unknown as Json,
+      revisar_antes_liberar: Boolean(p.revisarAntesLiberar),
     });
     if (error) throw error;
     if (p.ehReforco) {
@@ -41,13 +63,17 @@ export async function salvarAtividadeGerada(
         tipo: q.tipo,
         ordem: i,
         enunciado: q.enunciado,
-        rubrica: q.rubrica,
+        rubrica: q.rubrica ? (q.rubrica as unknown as Json) : null,
       });
       if (eq) throw eq;
       if (q.tipo === "multipla_escolha") {
+        const embaralhadas = embaralhar(q.alternativas);
         const { error: ea } = await db.from("alternativas").insert(
-          q.alternativas.map((a, j) => ({
-            questao_id: questaoId, ordem: j, texto: a.texto, correta: a.correta,
+          embaralhadas.map((a, j) => ({
+            questao_id: questaoId,
+            ordem: j,
+            texto: a.texto,
+            correta: a.correta,
             equivoco: a.correta ? null : a.equivoco!.trim(),
           })),
         );

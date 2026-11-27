@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 import { getProfessorAtual } from "@/lib/usuario-atual";
 import { diagnosticosDoProfessor, lacunasDaTurma, LIMIAR_LACUNA, MIN_QUESTOES } from "@/lib/diagnostico";
+import { contarFilaRevisao } from "@/lib/revisao-dissertativas";
 import type { ResumoDiagnostico } from "@/lib/diagnostico-ia";
 import { ordemDaDisciplina, SEM_DISCIPLINA } from "@/lib/disciplinas";
 import { Bolinhas } from "../bolinhas";
@@ -44,7 +45,10 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
   await connection();
   const { turma: turmaParam, disc: discParam } = await searchParams;
   const { supabase, professor } = await getProfessorAtual();
-  const todas = await diagnosticosDoProfessor(professor.id);
+  const [todas, filaRevisao] = await Promise.all([
+    diagnosticosDoProfessor(professor.id),
+    contarFilaRevisao(professor.id),
+  ]);
   const comDados = todas.filter((d) => d.totalEntregas > 0);
 
   if (!comDados.length) {
@@ -143,7 +147,24 @@ async function Conteudo({ searchParams }: { searchParams: PageProps<"/diagnostic
           {d.alunos.filter((a) => a.entregou).length} de {d.totalAlunos} alunos entregaram
         </span>
       </nav>
-      <AcoesRelatorio texto={relatorio} />
+      <div className="no-print flex flex-wrap items-center justify-between gap-3">
+        <AcoesRelatorio texto={relatorio} turmaId={d.turma.id} disciplina={filtroAtivo || undefined} />
+        <Link
+          href="/diagnostico/revisao"
+          className={
+            filaRevisao.pendentes + filaRevisao.sinalizadas + filaRevisao.aguardandoLiberacao > 0
+              ? "btn btn-primary btn-sm"
+              : "btn btn-secondary btn-sm"
+          }
+        >
+          Mesa de revisão
+          {filaRevisao.pendentes + filaRevisao.sinalizadas + filaRevisao.aguardandoLiberacao > 0 && (
+            <span className="rounded-full bg-surface px-2 py-0.5 text-[11px] font-bold text-ink">
+              {filaRevisao.pendentes + filaRevisao.sinalizadas + filaRevisao.aguardandoLiberacao}
+            </span>
+          )}
+        </Link>
+      </div>
 
       {disciplinasDaTurma.length > 1 && (
         <nav aria-label="Disciplinas" className="no-print -mt-4 flex flex-wrap items-center gap-2">

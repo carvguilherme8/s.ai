@@ -5,9 +5,8 @@ import { connection } from "next/server";
 import { getSessao } from "@/lib/supabase/server";
 import { LIMIAR_LACUNA, MIN_QUESTOES } from "@/lib/diagnostico";
 import { areaDaDisciplina, ordemDaDisciplina, SEM_DISCIPLINA } from "@/lib/disciplinas";
-import { sair } from "../auth/actions";
+import { BotaoSairAluno } from "./botao-sair";
 import { Bolinhas } from "../bolinhas";
-import { IconeSair } from "../icones";
 
 const pct = (d: number) => `${Math.round(d * 100)}%`;
 
@@ -102,9 +101,7 @@ async function Conteudo() {
           <h1 className="text-3xl font-bold tracking-tight">Olá, {profile.nome}</h1>
           <p className="text-sm text-muted">Turma {turma?.nome}</p>
         </div>
-        <form action={sair}>
-          <button className="btn btn-secondary btn-sm">Sair <IconeSair /></button>
-        </form>
+        <BotaoSairAluno />
       </header>
 
       <h2 className="mb-3 font-display text-xl font-bold">Atividades</h2>

@@ -1,24 +1,48 @@
 "use server";
 
+import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSessao } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { geminiConfigurado } from "@/lib/material-ia";
-import {
-  corrigirDissertativa,
-  gerarFeedback,
-  type CorrecaoDissertativa,
-  type ItemParaFeedback,
-  type Rubrica,
-} from "@/lib/correcao-ia";
-import { formatarTrechosParaPrompt, recuperarTrechosRelevantes } from "@/lib/rag";
-import type { TrechoRef } from "@/lib/questoes-ia";
+import { processarCorrecaoAssincronaEntrega } from "@/lib/processar-entrega";
 import type { Json } from "@/lib/supabase/database.types";
 
 export type EstadoForm = { erro?: string } | undefined;
 
 const MIN_DISSERTATIVA = 10;
+
+export type TelemetriaResposta = {
+  paste_events: number;
+  paste_chars: number;
+  total_chars: number;
+  tempo_segundos: number;
+  sinal_cola: boolean;
+};
+
+function parseTelemetria(bruto: FormDataEntryValue | null, textoFinal: string): TelemetriaResposta | null {
+  if (!bruto || typeof bruto !== "string") return null;
+  try {
+    const j = JSON.parse(bruto) as Partial<TelemetriaResposta>;
+    const pasteEvents = Math.max(0, Math.round(Number(j.paste_events) || 0));
+    const pasteChars = Math.max(0, Math.round(Number(j.paste_chars) || 0));
+    const totalChars = textoFinal.length;
+    const tempoSegundos = Math.max(0, Math.round(Number(j.tempo_segundos) || 0));
+    const razaoCola = totalChars > 0 ? pasteChars / totalChars : 0;
+    // Sinal conservador (informativo, nunca punitivo): colou >= 70% de um texto substancial muito rápido.
+    const sinalCola = pasteChars >= 80 && razaoCola >= 0.7 && tempoSegundos < 35;
+    return {
+      paste_events: pasteEvents,
+      paste_chars: pasteChars,
+      total_chars: totalChars,
+      tempo_segundos: tempoSegundos,
+      sinal_cola: sinalCola,
+    };
+  } catch {
+    return null;
+  }
+}
 
 export async function enviarEntrega(_: EstadoForm, formData: FormData): Promise<EstadoForm> {
   const sessao = await getSessao();
@@ -28,7 +52,10 @@ export async function enviarEntrega(_: EstadoForm, formData: FormData): Promise<
 
   // Visibilidade e prazo via RLS (a atividade precisa estar publicada na turma do aluno).
   const { data: atividade } = await sessao.supabase
-    .from("atividades").select("id, prazo, material_id").eq("id", atividadeId).maybeSingle();
+    .from("atividades")
+    .select("id, prazo, material_id, revisar_antes_liberar")
+    .eq("id", atividadeId)
+    .maybeSingle();
   if (!atividade) return { erro: "Atividade não encontrada." };
   if (atividade.prazo && new Date(atividade.prazo) < new Date()) return { erro: "O prazo desta atividade já terminou." };
 
@@ -49,178 +76,143 @@ export async function enviarEntrega(_: EstadoForm, formData: FormData): Promise<
   if (!questoes?.length) return { erro: "Esta atividade não tem questões." };
 
   // Validação: a Entrega só vale completa (o Feedback depende disso).
-  type Resposta = { alternativaId: string | null; texto: string | null };
-  const respostas = new Map<string, Resposta>();
+  type RespostaParsed = { alternativaId: string | null; texto: string | null; telemetria: TelemetriaResposta | null };
+  const respostas = new Map<string, RespostaParsed>();
   for (const q of questoes) {
     const valor = String(formData.get(`q_${q.id}`) ?? "").trim();
     if (q.tipo === "multipla_escolha") {
       if (!q.alternativas.some((a) => a.id === valor)) return { erro: "Responda todas as questões antes de enviar." };
-      respostas.set(q.id, { alternativaId: valor, texto: null });
+      respostas.set(q.id, { alternativaId: valor, texto: null, telemetria: null });
     } else {
       if (valor.length < MIN_DISSERTATIVA) return { erro: "Responda todas as questões antes de enviar." };
-      respostas.set(q.id, { alternativaId: null, texto: valor });
+      respostas.set(q.id, {
+        alternativaId: null,
+        texto: valor,
+        telemetria: parseTelemetria(formData.get(`telemetria_${q.id}`), valor),
+      });
     }
   }
-  if (!geminiConfigurado()) return { erro: "A correção por IA não está configurada. Avise seu professor." };
+
+  const temDissertativa = questoes.some((q) => q.tipo === "dissertativa");
+  // Trava humana: se a professora pediu revisão prévia em atividade com dissertativa, liberada_em inicia null.
+  const liberadaEm = atividade.revisar_antes_liberar && temDissertativa ? null : new Date().toISOString();
 
   const { data: entrega, error: erroEntrega } = await admin
-    .from("entregas").insert({ atividade_id: atividadeId, aluno_id: alunoId }).select("id").single();
+    .from("entregas")
+    .insert({ atividade_id: atividadeId, aluno_id: alunoId, liberada_em: liberadaEm })
+    .select("id")
+    .single();
   if (erroEntrega) {
     if (erroEntrega.code === "23505") redirect(`/aluno/atividades/${atividadeId}`);
     console.error("enviarEntrega:", erroEntrega);
     return { erro: "Não foi possível enviar. Tente novamente." };
   }
 
-  // Correção: múltipla escolha é automática; dissertativas pela Rubrica (em paralelo).
-  const correcoes = new Map<string, CorrecaoDissertativa | null>();
-  await Promise.all(
-    questoes.filter((q) => q.tipo === "dissertativa").map(async (q) => {
-      try {
-        let referencia = q.trecho?.conteudo ?? "";
-        if (!referencia && atividade.material_id) {
-          const encontrados = await recuperarTrechosRelevantes(
-            admin,
-            atividade.material_id,
-            `${q.topico?.nome ?? ""} ${q.enunciado}`,
-            { limite: 2 },
-          );
-          referencia = formatarTrechosParaPrompt(encontrados);
-        }
-        correcoes.set(
-          q.id,
-          await corrigirDissertativa(q.enunciado, q.rubrica as Rubrica, respostas.get(q.id)!.texto!, referencia),
-        );
-      } catch (e) {
-        console.error("corrigirDissertativa:", e);
-        correcoes.set(q.id, null);
-      }
-    }),
-  );
+  // Passo síncrono (<300ms): corrige TODAS as objetivas imediatamente e grava dissertativas como pendentes.
+  // Nunca bloqueia a entrega do aluno mesmo se a Gemini API estiver offline ou sem chave configurada!
+  const linhasRespostas: {
+    entrega_id: string;
+    questao_id: string;
+    alternativa_id: string | null;
+    texto: string | null;
+    nota_ia: number | null;
+    correcao: Json;
+    telemetria: Json | null;
+  }[] = [];
 
-  type Linha = { questaoId: string; nota: number | null; correcao: Json };
-  const linhas: Linha[] = [];
-  const paraFeedback: ItemParaFeedback[] = [];
-  const meta = new Map<string, { nota: number | null; pagina: number | null; trecho: string | null }>();
+  const itensFeedbackInicial: {
+    questao_id: string;
+    nota: number | null;
+    explicacao: string | null;
+    revisar: { pagina: number; trecho: string | null } | null;
+  }[] = [];
+  const topicosErrados = new Set<string>();
+  let precisaEnriquecerIA = temDissertativa;
 
   for (const q of questoes) {
     const r = respostas.get(q.id)!;
-    let nota: number | null;
-    let correcao: Json;
+    const pagina = q.trecho?.pagina ?? null;
+    const trecho = q.trecho?.conteudo
+      ? q.trecho.conteudo.replace(/^\s*\[página \d+\]\s*/, "").slice(0, 280)
+      : null;
+
     if (q.tipo === "multipla_escolha") {
       const escolhida = q.alternativas.find((a) => a.id === r.alternativaId)!;
       const correta = q.alternativas.find((a) => a.correta);
-      nota = escolhida.correta ? 1 : 0;
-      correcao = { correta: escolhida.correta, equivoco: escolhida.correta ? null : escolhida.equivoco };
+      const nota = escolhida.correta ? 1 : 0;
+      const correcao = { correta: escolhida.correta, equivoco: escolhida.correta ? null : escolhida.equivoco };
+
+      linhasRespostas.push({
+        entrega_id: entrega.id,
+        questao_id: q.id,
+        alternativa_id: r.alternativaId,
+        texto: null,
+        nota_ia: nota,
+        correcao: correcao as unknown as Json,
+        telemetria: null,
+      });
+
+      let explicacaoPlanoB: string | null = null;
       if (nota < 1) {
-        paraFeedback.push({
-          questao_id: q.id, topico: q.topico?.nome ?? "", enunciado: q.enunciado,
-          resposta_aluno: escolhida.texto, resposta_correta: correta?.texto ?? null,
-          equivoco: escolhida.equivoco, comentario_correcao: null,
-        });
+        precisaEnriquecerIA = true;
+        if (q.topico?.nome) topicosErrados.add(q.topico.nome);
+        explicacaoPlanoB =
+          `${escolhida.equivoco ? `A alternativa que você marcou costuma indicar este equívoco: ${escolhida.equivoco} ` : ""}` +
+          (correta ? `A resposta correta era: ${correta.texto}` : "");
       }
+      itensFeedbackInicial.push({
+        questao_id: q.id,
+        nota,
+        explicacao: explicacaoPlanoB,
+        revisar: nota < 1 && pagina !== null ? { pagina, trecho } : null,
+      });
     } else {
-      const c = correcoes.get(q.id) ?? null;
-      nota = c?.nota ?? null;
-      correcao = c ? (c as unknown as Json) : { pendente: true };
-      if (c && c.nota < 1) {
-        paraFeedback.push({
-          questao_id: q.id, topico: q.topico?.nome ?? "", enunciado: q.enunciado,
-          resposta_aluno: r.texto!, resposta_correta: null, equivoco: null,
-          comentario_correcao: c.criterios.map((x) => `${x.criterio}: ${x.obtidos}/${x.pontos}. ${x.comentario}`).join(" "),
-        });
-      }
+      linhasRespostas.push({
+        entrega_id: entrega.id,
+        questao_id: q.id,
+        alternativa_id: null,
+        texto: r.texto,
+        nota_ia: null,
+        correcao: { pendente: true } as unknown as Json,
+        telemetria: r.telemetria ? (r.telemetria as unknown as Json) : null,
+      });
+      itensFeedbackInicial.push({
+        questao_id: q.id,
+        nota: null,
+        explicacao: null,
+        revisar: null,
+      });
     }
-    linhas.push({ questaoId: q.id, nota, correcao });
-    meta.set(q.id, {
-      nota,
-      pagina: q.trecho?.pagina ?? null,
-      trecho: q.trecho?.conteudo ? q.trecho.conteudo.replace(/^\s*\[página \d+\]\s*/, "").slice(0, 280) : null,
-    });
   }
 
-  const { error: erroRespostas } = await admin.from("respostas").insert(
-    linhas.map((l) => ({
-      entrega_id: entrega.id,
-      questao_id: l.questaoId,
-      alternativa_id: respostas.get(l.questaoId)!.alternativaId,
-      texto: respostas.get(l.questaoId)!.texto,
-      nota_ia: l.nota,
-      correcao: l.correcao,
-    })),
-  );
+  const { error: erroRespostas } = await admin.from("respostas").insert(linhasRespostas);
   if (erroRespostas) {
     console.error("enviarEntrega respostas:", erroRespostas);
     await admin.from("entregas").delete().eq("id", entrega.id);
     return { erro: "Não foi possível salvar suas respostas. Tente novamente." };
   }
 
-  // Feedback: gerado uma vez e guardado (cache). Se a IA falhar, a Entrega continua válida.
-  let resumo: string | null = null;
-  const explicacoes = new Map<string, string>();
-  if (paraFeedback.length) {
-    try {
-      let contextoMaterial = "";
-      if (atividade.material_id) {
-        const idsErradas = new Set(paraFeedback.map((it) => it.questao_id));
-        const trechosLigados: TrechoRef[] = questoes
-          .filter((q) => idsErradas.has(q.id) && q.trecho)
-          .map((q) => ({ ordem: q.trecho!.ordem, pagina: q.trecho!.pagina, conteudo: q.trecho!.conteudo }));
+  // Salva feedback inicial imediato (Plano B já pronto para objetivas).
+  const resumoInicial =
+    topicosErrados.size > 0
+      ? `Vale revisar: ${[...topicosErrados].join("; ")}.`
+      : temDissertativa
+        ? null
+        : "Parabéns! Você acertou tudo nesta atividade.";
 
-        const consultaFeedback = paraFeedback
-          .map((it) => `${it.topico}: ${it.equivoco ?? it.enunciado.slice(0, 200)}`)
-          .join("\n");
-        const trechosRag = await recuperarTrechosRelevantes(admin, atividade.material_id, consultaFeedback, {
-          limite: 5,
-        });
-        contextoMaterial = formatarTrechosParaPrompt([...trechosLigados, ...trechosRag]);
+  await admin
+    .from("entregas")
+    .update({ feedback: { resumo: resumoInicial, itens: itensFeedbackInicial } as unknown as Json })
+    .eq("id", entrega.id);
 
-        if (!contextoMaterial) {
-          contextoMaterial =
-            (await admin.from("materiais").select("conteudo_texto").eq("id", atividade.material_id).maybeSingle()).data
-              ?.conteudo_texto ?? "";
-        }
-      }
-      const fb = await gerarFeedback(paraFeedback, contextoMaterial);
-      resumo = fb.resumo ?? null;
-      fb.itens?.forEach((i) => explicacoes.set(i.questao_id, i.explicacao));
-    } catch (e) {
-      console.error("gerarFeedback:", e);
-    }
-  } else {
-    resumo = "Parabéns! Você acertou tudo nesta atividade.";
+  // Processamento assíncrono não-bloqueante (Next.js 16 `after`) para dissertativas e feedback IA.
+  if (precisaEnriquecerIA && geminiConfigurado()) {
+    after(async () => {
+      await processarCorrecaoAssincronaEntrega(entrega.id);
+    });
   }
-
-  // Plano B sem IA (cota esgotada, falha de rede): usa o Equívoco do distrator e o tópico.
-  for (const it of paraFeedback) {
-    if (explicacoes.has(it.questao_id)) continue;
-    if (it.resposta_correta) {
-      explicacoes.set(
-        it.questao_id,
-        `${it.equivoco ? `A alternativa que você marcou costuma indicar este equívoco: ${it.equivoco} ` : ""}` +
-          `A resposta correta era: ${it.resposta_correta}`,
-      );
-    }
-  }
-  if (!resumo && paraFeedback.length) {
-    const topicos = [...new Set(paraFeedback.map((it) => it.topico).filter(Boolean))];
-    resumo = `Vale revisar: ${topicos.join("; ")}.`;
-  }
-
-  const feedback = {
-    resumo,
-    itens: questoes.map((q) => {
-      const m = meta.get(q.id)!;
-      const precisaRevisar = m.nota !== null && m.nota < 1;
-      return {
-        questao_id: q.id,
-        nota: m.nota,
-        explicacao: explicacoes.get(q.id) ?? null,
-        revisar: precisaRevisar && m.pagina !== null ? { pagina: m.pagina, trecho: m.trecho } : null,
-      };
-    }),
-  };
-  await admin.from("entregas").update({ feedback }).eq("id", entrega.id);
 
   revalidatePath("/aluno");
+  revalidatePath(`/aluno/atividades/${atividadeId}`);
   redirect(`/aluno/atividades/${atividadeId}`);
 }
